@@ -211,9 +211,6 @@ void X2Dome::uiEvent(X2GUIExchangeInterface* uiex, const char* pszEvent)
                 m_bCalibratingDome = false;
                 // set button text the Calibrate
                 uiex->setText("pushButton", "Calibrate");
-                // restore saved ticks per rev
-                uiex->setPropertyInt("ticksPerRev","value", m_nSavedTicksPerRev);
-                m_S7PLC.setNbTicksPerRev(m_nSavedTicksPerRev);
             } else {                                // Calibrate
                 // disable buttons
                 uiex->setEnabled("pushButtonOK", false);
@@ -221,7 +218,6 @@ void X2Dome::uiEvent(X2GUIExchangeInterface* uiex, const char* pszEvent)
                 uiex->setEnabled("pushButton_2", false);
                 // change "Calibrate" to "Abort"
                 uiex->setText("pushButton", "Abort");
-                m_nSavedTicksPerRev = m_S7PLC.getNbTicksPerRev();
                 m_S7PLC.calibrate();
                 m_bCalibratingDome = true;
             }

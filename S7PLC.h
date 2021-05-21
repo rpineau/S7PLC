@@ -28,6 +28,9 @@
 #include "../../licensedinterfaces/sberrorx.h"
 #include "../../licensedinterfaces/sleeperinterface.h"
 
+#include "json.hpp"
+using json = nlohmann::json;
+
 #define DRIVER_VERSION      1.0
 #define RESP_BUFFER_SIZE   8192
 #define ND_LOG_BUFFER_SIZE 256
@@ -101,9 +104,6 @@ protected:
     int             getDomeAz(double &domeAz);
     int             getDomeEl(double &domeEl);
     int             getShutterState(int &state);
-
-    int             getDomeStepPerRev(int &nStepPerRev);
-    int             setDomeStepPerRev(int nStepPerRev);
 
     bool            isDomeMoving();
     bool            isDomeAtHome();

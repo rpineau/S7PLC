@@ -16,6 +16,7 @@
 		933C741C1E5F6BA2007E5CB3 /* main.h in Headers */ = {isa = PBXBuildFile; fileRef = 933C74161E5F6BA2007E5CB3 /* main.h */; };
 		933C741D1E5F6BA2007E5CB3 /* x2dome.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 933C74171E5F6BA2007E5CB3 /* x2dome.cpp */; };
 		933C741E1E5F6BA2007E5CB3 /* x2dome.h in Headers */ = {isa = PBXBuildFile; fileRef = 933C74181E5F6BA2007E5CB3 /* x2dome.h */; };
+		93D1E6762658123B009284D1 /* json.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 93D1E6752658123B009284D1 /* json.hpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -29,6 +30,7 @@
 		933C74161E5F6BA2007E5CB3 /* main.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = main.h; sourceTree = "<group>"; };
 		933C74171E5F6BA2007E5CB3 /* x2dome.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = x2dome.cpp; sourceTree = "<group>"; };
 		933C74181E5F6BA2007E5CB3 /* x2dome.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = x2dome.h; sourceTree = "<group>"; };
+		93D1E6752658123B009284D1 /* json.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = json.hpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -65,6 +67,7 @@
 		932CF7C51E5F638B00E04860 /* Sources */ = {
 			isa = PBXGroup;
 			children = (
+				93D1E6752658123B009284D1 /* json.hpp */,
 				933C74131E5F6BA2007E5CB3 /* S7PLC.cpp */,
 				933C74141E5F6BA2007E5CB3 /* S7PLC.h */,
 				933C74151E5F6BA2007E5CB3 /* main.cpp */,
@@ -92,6 +95,7 @@
 			isa = PBXHeadersBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				93D1E6762658123B009284D1 /* json.hpp in Headers */,
 				933C741A1E5F6BA2007E5CB3 /* S7PLC.h in Headers */,
 				933C741C1E5F6BA2007E5CB3 /* main.h in Headers */,
 				933C741E1E5F6BA2007E5CB3 /* x2dome.h in Headers */,
@@ -172,7 +176,7 @@
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_ANALYZER_NONNULL = YES;
-				CLANG_CXX_LANGUAGE_STANDARD = "compiler-default";
+				CLANG_CXX_LANGUAGE_STANDARD = "c++0x";
 				CLANG_CXX_LIBRARY = "compiler-default";
 				CLANG_ENABLE_MODULES = YES;
 				CLANG_ENABLE_OBJC_ARC = YES;
@@ -230,7 +234,7 @@
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_ANALYZER_NONNULL = YES;
-				CLANG_CXX_LANGUAGE_STANDARD = "compiler-default";
+				CLANG_CXX_LANGUAGE_STANDARD = "c++0x";
 				CLANG_CXX_LIBRARY = "compiler-default";
 				CLANG_ENABLE_MODULES = YES;
 				CLANG_ENABLE_OBJC_ARC = YES;
