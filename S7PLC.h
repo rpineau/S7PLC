@@ -38,11 +38,14 @@ using json = nlohmann::json;
 
 #define PLUGIN_DEBUG 2
 
-// erS7 codes
-enum S7PLCErS7s {PLUGIN_OK=0, NOT_CONNECTED, S7_CANT_CONNECT, S7_BAD_CMD_RESPONSE, COMMAND_FAILED, COMMAND_TIMEOUT};
+// S7 error codes
+enum S7PLCErrors {PLUGIN_OK=0, NOT_CONNECTED, S7_CANT_CONNECT, S7_BAD_CMD_RESPONSE, COMMAND_FAILED, COMMAND_TIMEOUT};
 
-// ErS7 code
-enum S7PLCShutterState {OPEN=1, OPENING, CLOSED, CLOSING, SHUTTER_ERROR, UNKNOWN};
+// S7 dome state
+enum S7PLCDomeState {IDLE=0, MOVING};
+
+// S7 shutter state
+enum S7PLCShutterState {OPEN=1, OPENING, CLOSED, CLOSING, SHUTTER_ERROR, SHUTTER_UNKNOWN};
 
 class CS7PLC
 {
@@ -87,7 +90,7 @@ public:
 
     int calibrate();
 
-    static size_t writeFunction(void* ptr, size_t size, size_t nmemb, std::string* data);
+    static size_t writeFunction(void* ptr, size_t size, size_t nmemb, void* data);
 
 
     void getIpAddress(std::string &IpAddress);
@@ -108,8 +111,6 @@ protected:
     bool            isDomeMoving();
     bool            isDomeAtHome();
 
-    int             m_nNbStepPerRev;
-    
     CURL            *m_Curl;
     std::string     m_sBaseUrl;
 
@@ -126,6 +127,7 @@ protected:
 
     double          m_dGotoAz;
 
+    int             m_nDomeState;
     int             m_nShutterState;
     int             m_nGotoTries;
 

@@ -18,7 +18,7 @@ CS7PLC::CS7PLC()
 
 
     m_bShutterOpened = false;
-    m_nShutterState = UNKNOWN;
+    m_nShutterState = SHUTTER_UNKNOWN;
 
     m_nGotoTries = 0;
     m_sBaseUrl.clear();
@@ -149,7 +149,16 @@ int CS7PLC::domeCommandGET(std::string sCmd, std::string &sResp)
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] [CS7PLC::domeCommandGET]\n", timestamp);
+    fflush(Logfile);
+#endif
+
     curl_easy_setopt(m_Curl, CURLOPT_URL, (m_sBaseUrl+sCmd).c_str());
+    curl_easy_setopt(m_Curl, CURLOPT_HTTPGET, 1L);
     curl_easy_setopt(m_Curl, CURLOPT_FOLLOWLOCATION, 1L);
     curl_easy_setopt(m_Curl, CURLOPT_WRITEFUNCTION, writeFunction);
     curl_easy_setopt(m_Curl, CURLOPT_WRITEDATA, &response_string);
@@ -170,6 +179,14 @@ int CS7PLC::domeCommandGET(std::string sCmd, std::string &sResp)
         return ERR_CMDFAILED;
     }
 
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] [CS7PLC::domeCommandGET] response = %s\n", timestamp,  response_string.c_str());
+    fflush(Logfile);
+#endif
+
     sResp.assign(response_string);
     return nErr;
 }
@@ -185,6 +202,7 @@ int CS7PLC::domeCommandPOST(std::string sCmd, std::string &sResp, std::string sP
         return NOT_CONNECTED;
 
     curl_easy_setopt(m_Curl, CURLOPT_URL, (m_sBaseUrl+sCmd).c_str());
+    curl_easy_setopt(m_Curl, CURLOPT_POST, 1L);
     curl_easy_setopt(m_Curl, CURLOPT_POSTFIELDS, sParams.c_str());
     curl_easy_setopt(m_Curl, CURLOPT_POSTFIELDSIZE, sParams.size());
     curl_easy_setopt(m_Curl, CURLOPT_FOLLOWLOCATION, 1L);
@@ -206,6 +224,14 @@ int CS7PLC::domeCommandPOST(std::string sCmd, std::string &sResp, std::string sP
 #endif
         return ERR_CMDFAILED;
     }
+
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] [CS7PLC::domeCommandPOST] response = %s\n", timestamp,  response_string.c_str());
+    fflush(Logfile);
+#endif
 
     sResp.assign(response_string);
     return nErr;
@@ -234,8 +260,8 @@ int CS7PLC::getFirmware(std::string &sFirmware)
     }
 
     // process response_string
-    jResp = json::parse(response_string);
     try {
+        jResp = json::parse(response_string);
         sFirmware.assign(jResp.at("VERSION").get<std::string>());
     }
     catch (json::exception& e) {
@@ -258,15 +284,13 @@ int CS7PLC::calibrate()
 {
     int nErr = PLUGIN_OK;
     std::string response_string;
-    json jCmd;
+    std::string sParams;
 
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
-    jCmd["CALIBRATE"] = 1;
-    jCmd["AUTO"] = 1;
-
-    nErr = domeCommandPOST("/awp/calibrate.htm", response_string, jCmd.dump());
+    sParams="%22CALIBRATE%22=1&%22AUTO%22=1";
+    nErr = domeCommandPOST("/awp/calibrate.htm", response_string, sParams);
     if(nErr) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
         ltime = time(NULL);
@@ -291,21 +315,11 @@ int CS7PLC::isCalibratingComplete(bool &bComplete)
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
-    nErr = domeCommandGET("/awp/calibrateSate.htm", response_string);
-    if(nErr) {
-#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CS7PLC::isCalibratingComplete] ERROR = %s\n", timestamp, response_string.c_str());
-        fflush(Logfile);
-#endif
+    if(isDomeMoving()) {
+        bComplete = false;
         return nErr;
     }
 
-    // process response_string
-
-    // set bComplete to tur if done calibrating
 
     return nErr;
 
@@ -320,6 +334,15 @@ int CS7PLC::getDomeAz(double &domeAz)
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] [CS7PLC::getDomeAz]\n", timestamp);
+    fflush(Logfile);
+#endif
+
+
     // do http GET request to PLC got get current Az or Ticks .. TBD
     nErr = domeCommandGET("/awp/getAz.htm", response_string);
     if(nErr) {
@@ -327,8 +350,8 @@ int CS7PLC::getDomeAz(double &domeAz)
     }
 
     // process response_string
-    jResp = json::parse(response_string);
     try {
+        jResp = json::parse(response_string);
         m_dCurrentAzPosition = jResp.at("Az").get<float>();
         domeAz = m_dCurrentAzPosition;
     }
@@ -374,6 +397,16 @@ int CS7PLC::getShutterState(int &state)
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] [CS7PLC::getShutterState]\n", timestamp);
+    fflush(Logfile);
+#endif
+
+    return nErr;
+
     // do http GET request to PLC got get current the shutter state .. TBD
     nErr = domeCommandGET("/awp/getShutterState.htm", response_string);
     if(nErr) {
@@ -397,7 +430,7 @@ int CS7PLC::syncDome(double dAz, double dEl)
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
-    sParams="newAz="+std::to_string(dAz);
+    sParams="%22AZIMUTH%22="+std::to_string(dAz);
     // do http post to S7 to set current position ... Az or ticks .. TBD
 
     nErr = domeCommandPOST("/awp/syncToNewAz.htm", response_string, sParams);
@@ -434,24 +467,20 @@ int CS7PLC::gotoAzimuth(double newAz)
 {
     int nErr = PLUGIN_OK;
     std::string response_string;
-    json jCmd;
-    json jResp;
-    
+    std::string sPostData;
+
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
     // set target
-    jCmd["TARGET"] = std::to_string(newAz);
-    jCmd["AUTO"] = 1;
-    nErr = domeCommandPOST("/awp/setTarget.htm ", response_string, jCmd.dump());
+    sPostData = "%22TARGET%22=" + std::to_string(newAz) + "&%22AUTO%22=1";
+    nErr = domeCommandPOST("/awp/setTarget.htm ", response_string, sPostData);
     if(nErr)
         return nErr;
 
     // call GOTO
-    jCmd.clear();
-    jCmd["GO_TO"] = 1;
-    jCmd["AUTO"] = 1;
-    nErr = domeCommandPOST("/awp/goto.htm", response_string, jCmd.dump());
+    sPostData = "%GO_TO%22=1&%22AUTO%22=1";
+    nErr = domeCommandPOST("/awp/goto.htm", response_string, sPostData);
     if(nErr)
         return nErr;
 
@@ -470,7 +499,7 @@ int CS7PLC::openShutter()
         return NOT_CONNECTED;
 
     // send http post to S7 to open the shutter
-    sParams="action=OPEN";
+    sParams="%22OPEN%22=1";
     nErr = domeCommandPOST("/awp/openShutter.htm", response_string, sParams);
     if(nErr)
         return nErr;
@@ -487,7 +516,7 @@ int CS7PLC::closeShutter()
         return NOT_CONNECTED;
 
     // send http post to S7 to open the shutter
-    sParams="action=CLOSE";
+    sParams="%22CLOSE%22=1";
     nErr = domeCommandPOST("/awp/closeShutter.htm", response_string, sParams);
     if(nErr)
         return nErr;
@@ -499,17 +528,44 @@ bool CS7PLC::isDomeMoving()
     bool bIsMoving = false;
     int nErr = PLUGIN_OK;
     std::string response_string;
+    json jResp;
 
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
     // do http GET request to PLC got get current the dome rotation state .. TBD
-    nErr = domeCommandGET("/awp/getDomeState.htm", response_string);
+    nErr = domeCommandGET("/awp/getState.htm", response_string);
     if(nErr) {
         return ERR_CMDFAILED;
     }
 
     // process response_string
+    try {
+        jResp = json::parse(response_string);
+        m_nDomeState = jResp.at("DomeState").get<int>();
+    }
+    catch (json::exception& e) {
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+        ltime = time(NULL);
+        timestamp = asctime(localtime(&ltime));
+        timestamp[strlen(timestamp) - 1] = 0;
+        fprintf(Logfile, "[%s] [CS7PLC::isDomeMoving] json exception : %s - %d\n", timestamp, e.what(), e.id);
+        fflush(Logfile);
+#endif
+        return ERR_CMDFAILED;
+    }
+
+     switch(m_nDomeState) {
+         case IDLE :
+             bIsMoving = false;
+             break;
+         case MOVING :
+             bIsMoving = true;
+             break;
+         default:
+             bIsMoving = false;
+             break;
+     }
 
     return bIsMoving;
 }
@@ -519,19 +575,38 @@ bool CS7PLC::isDomeAtHome()
     bool bAthome = false;
     int nErr = PLUGIN_OK;
     std::string response_string;
+    json jResp;
+    int nHomeState;
 
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
     // do http GET request to PLC got get current the dome home state .. TBD
-    nErr = domeCommandGET("/awp/getHomeState.htm", response_string);
+    nErr = domeCommandGET("/awp/getHome.htm", response_string);
     if(nErr) {
         return ERR_CMDFAILED;
     }
 
     // process response_string
-    return bAthome;
+    try {
+        jResp = json::parse(response_string);
+        nHomeState = jResp.at("atHome").get<int>();
+    }
+    catch (json::exception& e) {
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+        ltime = time(NULL);
+        timestamp = asctime(localtime(&ltime));
+        timestamp[strlen(timestamp) - 1] = 0;
+        fprintf(Logfile, "[%s] [CS7PLC::isDomeMoving] json exception : %s - %d\n", timestamp, e.what(), e.id);
+        fflush(Logfile);
+#endif
+        return ERR_CMDFAILED;
+    }
 
+    if(nHomeState)
+        bAthome = true;
+
+    return bAthome;
 }
 
 
@@ -716,7 +791,7 @@ int CS7PLC::abortCurrentCommand()
 
     int nErr = PLUGIN_OK;
     std::string response_string;
-    json jCmd;
+    std::string sParams;
 
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
 	ltime = time(NULL);
@@ -727,11 +802,8 @@ int CS7PLC::abortCurrentCommand()
 #endif
 
     // do http post to S7 to abort all motion
-    // call GOTO
-    jCmd.clear();
-    jCmd["STOP"] = 1;
-    jCmd["AUTO"] = 1;
-    nErr = domeCommandPOST("/awp/stop.htm", response_string, jCmd.dump());
+    sParams="%22STOP%22=1&%22AUTO%22=1";
+    nErr = domeCommandPOST("/awp/stop.htm", response_string, sParams);
     if(nErr)
         return nErr;
 
@@ -768,9 +840,11 @@ int CS7PLC::getCurrentShutterState()
 #pragma mark - Getter / Setter
 
 
-size_t CS7PLC::writeFunction(void* ptr, size_t size, size_t nmemb, std::string* data)
+size_t CS7PLC::writeFunction(void* ptr, size_t size, size_t nmemb, void* data)
 {
-    data->append((char*)ptr, size * nmemb);
+    std::string *sData = (std::string *)data;
+    sData->append((char*)ptr, size * nmemb);
+
     return size * nmemb;
 }
 
