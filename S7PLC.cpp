@@ -69,6 +69,7 @@ CS7PLC::~CS7PLC()
 int CS7PLC::Connect()
 {
     int nErr = SB_OK;
+    std::string sDummy;
 
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
     ltime = time(NULL);
@@ -105,7 +106,6 @@ int CS7PLC::Connect()
     fprintf(Logfile, "[%s] [CS7PLC::Connect] Getting Shutter state.\n", timestamp);
     fflush(Logfile);
 #endif
-/*
     // get the current shutter state just to check the connection, we don't care about the state for now.
     nErr = getShutterState(m_nShutterState);
     if(nErr) {
@@ -127,7 +127,16 @@ int CS7PLC::Connect()
     fprintf(Logfile, "[%s] [CS7PLC::Connect] Shutter state = %d.\n", timestamp, m_nShutterState);
     fflush(Logfile);
 #endif
-*/
+
+    nErr = getFirmware(sDummy);
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] [CS7PLC::Connect] Firmware = %s.\n", timestamp, sDummy.c_str());
+    fflush(Logfile);
+#endif
+
     return SB_OK;
 }
 
@@ -154,6 +163,7 @@ int CS7PLC::domeCommandGET(std::string sCmd, std::string &sResp)
     timestamp = asctime(localtime(&ltime));
     timestamp[strlen(timestamp) - 1] = 0;
     fprintf(Logfile, "[%s] [CS7PLC::domeCommandGET]\n", timestamp);
+    fprintf(Logfile, "[%s] [CS7PLC::domeCommandGET] Doing get on  %s\n", timestamp, sCmd.c_str());
     fflush(Logfile);
 #endif
     curl_easy_setopt(m_Curl, CURLOPT_URL, (m_sBaseUrl+sCmd).c_str());
@@ -210,6 +220,15 @@ int CS7PLC::domeCommandPOST(std::string sCmd, std::string &sResp, std::string sP
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] [CS7PLC::domeCommandPOST]\n", timestamp);
+    fprintf(Logfile, "[%s] [CS7PLC::domeCommandPOST] Doing post on  %s\n", timestamp, sCmd.c_str());
+    fprintf(Logfile, "[%s] [CS7PLC::domeCommandPOST] Sending %s\n", timestamp, sParams.c_str());
+    fflush(Logfile);
+#endif
     curl_easy_setopt(m_Curl, CURLOPT_URL, (m_sBaseUrl+sCmd).c_str());
     curl_easy_setopt(m_Curl, CURLOPT_POST, 1L);
     curl_easy_setopt(m_Curl, CURLOPT_SSL_VERIFYSTATUS, 0L);
@@ -290,6 +309,7 @@ int CS7PLC::getFirmware(std::string &sFirmware)
         fprintf(Logfile, "[%s] [CS7PLC::getFirmware] json exception : %s - %d\n", timestamp, e.what(), e.id);
         fflush(Logfile);
 #endif
+        sFirmware = "Unknown";
         return ERR_CMDFAILED;
     }
 
@@ -369,6 +389,17 @@ int CS7PLC::getDomeAz(double &domeAz)
 
     // process response_string
     try {
+        if(response_string.find("e-")!=-1) {
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+            ltime = time(NULL);
+            timestamp = asctime(localtime(&ltime));
+            timestamp[strlen(timestamp) - 1] = 0;
+            fprintf(Logfile, "[%s] [CS7PLC::getDomeAz] response_string contains 'e-'\n", timestamp);
+            fflush(Logfile);
+#endif
+            domeAz = m_dCurrentAzPosition;
+            return nErr;
+        }
         jResp = json::parse(response_string);
         m_dCurrentAzPosition = jResp.at("Az").get<float>();
         domeAz = m_dCurrentAzPosition;
@@ -425,6 +456,11 @@ int CS7PLC::getShutterState(int &state)
     fprintf(Logfile, "[%s] [CS7PLC::getShutterState]\n", timestamp);
     fflush(Logfile);
 #endif
+
+    // just return closed until we implement the hardware.
+    m_nShutterState = CLOSED;
+    return nErr;
+
 
     // do http GET request to PLC got get current the shutter state
     nErr = domeCommandGET("/awp/getShutter.htm", response_string);
@@ -527,7 +563,7 @@ int CS7PLC::gotoAzimuth(double newAz)
         return nErr;
 
     // call GOTO
-    sPostData = "%GO_TO%22=1&%22AUTO%22=1";
+    sPostData = "%GOTO%22=1&%22AUTO%22=1";
     nErr = domeCommandPOST("/awp/goto.htm", response_string, sPostData);
     if(nErr)
         return nErr;
