@@ -187,7 +187,15 @@ int CS7PLC::domeCommandGET(std::string sCmd, std::string &sResp)
     fflush(Logfile);
 #endif
 
-    sResp.assign(response_string);
+    sResp.assign(cleanupResponse(response_string,'\n'));
+
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] [CS7PLC::domeCommandGET] sResp = %s\n", timestamp,  sResp.c_str());
+    fflush(Logfile);
+#endif
     return nErr;
 }
 
@@ -233,7 +241,14 @@ int CS7PLC::domeCommandPOST(std::string sCmd, std::string &sResp, std::string sP
     fflush(Logfile);
 #endif
 
-    sResp.assign(response_string);
+    sResp.assign(cleanupResponse(response_string,'\n'));
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] [CS7PLC::domeCommandPOST] sResp = %s\n", timestamp,  sResp.c_str());
+    fflush(Logfile);
+#endif
     return nErr;
 }
 
@@ -393,6 +408,9 @@ int CS7PLC::getShutterState(int &state)
 {
     int nErr = PLUGIN_OK;
     std::string response_string;
+    json jResp;
+
+    m_nShutterState = SHUTTER_UNKNOWN;
 
     if(!m_bIsConnected)
         return NOT_CONNECTED;
@@ -405,16 +423,30 @@ int CS7PLC::getShutterState(int &state)
     fflush(Logfile);
 #endif
 
-    return nErr;
-
-    // do http GET request to PLC got get current the shutter state .. TBD
-    nErr = domeCommandGET("/awp/getShutterState.htm", response_string);
+    // do http GET request to PLC got get current the shutter state
+    nErr = domeCommandGET("/awp/getShutter.htm", response_string);
     if(nErr) {
         state = SHUTTER_ERROR;
         return ERR_CMDFAILED;
     }
 
     // process response_string
+    try {
+        jResp = json::parse(response_string);
+        m_nShutterState = jResp.at("SLIT").get<int>();
+    }
+    catch (json::exception& e) {
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+        ltime = time(NULL);
+        timestamp = asctime(localtime(&ltime));
+        timestamp[strlen(timestamp) - 1] = 0;
+        fprintf(Logfile, "[%s] [CS7PLC::getDomeAz] json exception : %s - %d\n", timestamp, e.what(), e.id);
+        fflush(Logfile);
+#endif
+        return ERR_CMDFAILED;
+    }
+
+    state = m_nShutterState;
 
     return nErr;
 }
@@ -463,6 +495,19 @@ int CS7PLC::unparkDome()
     return nErr;
 }
 
+int CS7PLC::goHome()
+{
+    int nErr = PLUGIN_OK;
+    std::string response_string;
+    std::string sPostData;
+
+    // call GOTO
+    sPostData = "%GOHOME%22=1&%22AUTO%22=1";
+    nErr = domeCommandPOST("/awp/goHome.htm", response_string, sPostData);
+
+    return nErr;
+}
+
 int CS7PLC::gotoAzimuth(double newAz)
 {
     int nErr = PLUGIN_OK;
@@ -499,8 +544,8 @@ int CS7PLC::openShutter()
         return NOT_CONNECTED;
 
     // send http post to S7 to open the shutter
-    sParams="%22OPEN%22=1";
-    nErr = domeCommandPOST("/awp/openShutter.htm", response_string, sParams);
+    sParams="%22OPEN%22=1&%22AUTO%22=1";
+    nErr = domeCommandPOST("/awp/open.htm", response_string, sParams);
     if(nErr)
         return nErr;
     return nErr;
@@ -516,8 +561,8 @@ int CS7PLC::closeShutter()
         return NOT_CONNECTED;
 
     // send http post to S7 to open the shutter
-    sParams="%22CLOSE%22=1";
-    nErr = domeCommandPOST("/awp/closeShutter.htm", response_string, sParams);
+    sParams="%22CLOSE%22=1&%22AUTO%22=1";
+    nErr = domeCommandPOST("/awp/close.htm", response_string, sParams);
     if(nErr)
         return nErr;
     return nErr;
@@ -542,7 +587,7 @@ bool CS7PLC::isDomeMoving()
     // process response_string
     try {
         jResp = json::parse(response_string);
-        m_nDomeState = jResp.at("DomeState").get<int>();
+        m_nDomeState = jResp.at("State").get<int>();
     }
     catch (json::exception& e) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
@@ -642,7 +687,7 @@ int CS7PLC::isGoToComplete(bool &bComplete)
     fflush(Logfile);
 #endif
 
-    // we need to test "large" depending on the heading error
+    // we need to test "large" depending on the heading error and movement coasting
     if ((ceil(m_dGotoAz) <= ceil(dDomeAz)+3) && (ceil(m_dGotoAz) >= ceil(dDomeAz)-3)) {
         bComplete = true;
         m_nGotoTries = 0;
@@ -750,37 +795,45 @@ int CS7PLC::isCloseComplete(bool &complete)
 }
 
 
-int CS7PLC::isParkComplete(bool &complete)
+int CS7PLC::isParkComplete(bool &bComplete)
 {
     int nErr = PLUGIN_OK;
 
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
-    complete = true;
+    bComplete = true;
     return nErr;
 }
 
-int CS7PLC::isUnparkComplete(bool &complete)
+int CS7PLC::isUnparkComplete(bool &bComplete)
 {
     int nErr = PLUGIN_OK;
 
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
-    complete = true;
+    bComplete = true;
 
     return nErr;
 }
 
-int CS7PLC::isFindHomeComplete(bool &complete)
+int CS7PLC::isFindHomeComplete(bool &bComplete)
 {
     int nErr = PLUGIN_OK;
+    double dDomeAz;
 
     if(!m_bIsConnected)
         return NOT_CONNECTED;
-    complete = true;
 
+    if(isDomeMoving()) {
+        bComplete = false;
+        getDomeAz(dDomeAz);
+        return nErr;
+    }
+    else {
+        bComplete = true;
+    }
     return nErr;
 
 }
@@ -802,10 +855,12 @@ int CS7PLC::abortCurrentCommand()
 #endif
 
     // do http post to S7 to abort all motion
-    sParams="%22STOP%22=1&%22AUTO%22=1";
-    nErr = domeCommandPOST("/awp/stop.htm", response_string, sParams);
+    sParams="%22ABORT%22=1&%22AUTO%22=1";
+    nErr = domeCommandPOST("/awp/abort.htm", response_string, sParams);
     if(nErr)
         return nErr;
+
+    m_nGotoTries = 1;
 
     return nErr;
 }
@@ -895,3 +950,62 @@ void CS7PLC::setTcpPort(int nTcpPort)
     fflush(Logfile);
 #endif
 }
+
+
+std::string& CS7PLC::trim(std::string &str, const std::string& filter )
+{
+    return ltrim(rtrim(str, filter), filter);
+}
+
+std::string& CS7PLC::ltrim(std::string& str, const std::string& filter)
+{
+    str.erase(0, str.find_first_not_of(filter));
+    return str;
+}
+
+std::string& CS7PLC::rtrim(std::string& str, const std::string& filter)
+{
+    str.erase(str.find_last_not_of(filter) + 1);
+    return str;
+}
+
+
+std::string CS7PLC::cleanupResponse(const std::string InString, char cSeparator)
+{
+    int nErr = PLUGIN_OK;
+    std::string sSegment;
+    std::vector<std::string> svFields;
+
+    if(!InString.size()) {
+#ifdef PLUGIN_DEBUG
+        ltime = time(NULL);
+        timestamp = asctime(localtime(&ltime));
+        timestamp[strlen(timestamp) - 1] = 0;
+        fprintf(Logfile, "[%s] [CRTIDome::setDefaultDir] InString is empty\n", timestamp);
+        fflush(Logfile);
+#endif
+        return InString;
+    }
+
+
+    std::stringstream ssTmp(InString);
+
+    svFields.clear();
+    // split the string into vector elements
+    while(std::getline(ssTmp, sSegment, cSeparator))
+    {
+        if(sSegment.find("<!-") == -1)
+            svFields.push_back(sSegment);
+    }
+
+    if(svFields.size()==0) {
+        return std::string("");
+    }
+
+    sSegment.clear();
+    for( std::string s : svFields)
+        sSegment.append(trim(s,"\n\r "));
+    return sSegment;
+}
+
+

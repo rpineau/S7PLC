@@ -399,12 +399,15 @@ int X2Dome::dapiUnpark(void)
 
 int X2Dome::dapiFindHome(void)
 {
+    int nErr = SB_OK;
     X2MutexLocker ml(GetMutex());
 
     if(!m_bLinked)
         return ERR_NOLINK;
 
-    return SB_OK;
+    nErr = m_S7PLC.goHome();
+
+    return nErr;
 }
 
 int X2Dome::dapiIsGotoComplete(bool* pbComplete)

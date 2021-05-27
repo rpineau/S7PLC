@@ -23,7 +23,11 @@
 #include <time.h>
 #endif
 
+// C++ includes
 #include <string>
+#include <vector>
+#include <sstream>
+#include <iostream>
 
 #include "../../licensedinterfaces/sberrorx.h"
 #include "../../licensedinterfaces/sleeperinterface.h"
@@ -45,7 +49,8 @@ enum S7PLCErrors {PLUGIN_OK=0, NOT_CONNECTED, S7_CANT_CONNECT, S7_BAD_CMD_RESPON
 enum S7PLCDomeState {IDLE=0, MOVING};
 
 // S7 shutter state
-enum S7PLCShutterState {OPEN=1, OPENING, CLOSED, CLOSING, SHUTTER_ERROR, SHUTTER_UNKNOWN};
+// "0" close, "1" open, "2" opening, "3" closing.
+enum S7PLCShutterState {CLOSED=0, OPEN, OPENING, CLOSING, SHUTTER_ERROR, SHUTTER_UNKNOWN};
 
 class CS7PLC
 {
@@ -65,6 +70,8 @@ public:
     int syncDome(double dAz, double dEl);
     int parkDome(void);
     int unparkDome(void);
+    int goHome(void);
+
     int gotoAzimuth(double newAz);
     int openShutter();
     int closeShutter();
@@ -104,6 +111,8 @@ protected:
     int             domeCommandGET(std::string sCmd, std::string &sResp);
     int             domeCommandPOST(std::string sCmd, std::string &sResp, std::string sParams);
 
+    std::string     cleanupResponse(const std::string InString, char cSeparator);
+
     int             getDomeAz(double &domeAz);
     int             getDomeEl(double &domeEl);
     int             getShutterState(int &state);
@@ -131,6 +140,12 @@ protected:
     int             m_nShutterState;
     int             m_nGotoTries;
 
+
+    std::string&    trim(std::string &str, const std::string &filter );
+    std::string&    ltrim(std::string &str, const std::string &filter);
+    std::string&    rtrim(std::string &str, const std::string &filter);
+
+    
 #ifdef PLUGIN_DEBUG
     std::string m_sLogfilePath;
     // timestamp for logs
