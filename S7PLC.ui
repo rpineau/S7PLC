@@ -205,6 +205,19 @@
         <double>359.990000000000009</double>
        </property>
       </widget>
+      <widget class="QPushButton" name="pushButton">
+       <property name="geometry">
+        <rect>
+         <x>120</x>
+         <y>80</y>
+         <width>120</width>
+         <height>24</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Calibrate</string>
+       </property>
+      </widget>
      </widget>
     </widget>
    </item>

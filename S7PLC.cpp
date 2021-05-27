@@ -156,9 +156,10 @@ int CS7PLC::domeCommandGET(std::string sCmd, std::string &sResp)
     fprintf(Logfile, "[%s] [CS7PLC::domeCommandGET]\n", timestamp);
     fflush(Logfile);
 #endif
-
     curl_easy_setopt(m_Curl, CURLOPT_URL, (m_sBaseUrl+sCmd).c_str());
     curl_easy_setopt(m_Curl, CURLOPT_HTTPGET, 1L);
+    curl_easy_setopt(m_Curl, CURLOPT_SSL_VERIFYSTATUS, 0L);
+    curl_easy_setopt(m_Curl, CURLOPT_SSL_VERIFYPEER, 0L);
     curl_easy_setopt(m_Curl, CURLOPT_FOLLOWLOCATION, 1L);
     curl_easy_setopt(m_Curl, CURLOPT_WRITEFUNCTION, writeFunction);
     curl_easy_setopt(m_Curl, CURLOPT_WRITEDATA, &response_string);
@@ -211,6 +212,8 @@ int CS7PLC::domeCommandPOST(std::string sCmd, std::string &sResp, std::string sP
 
     curl_easy_setopt(m_Curl, CURLOPT_URL, (m_sBaseUrl+sCmd).c_str());
     curl_easy_setopt(m_Curl, CURLOPT_POST, 1L);
+    curl_easy_setopt(m_Curl, CURLOPT_SSL_VERIFYSTATUS, 0L);
+    curl_easy_setopt(m_Curl, CURLOPT_SSL_VERIFYPEER, 0L);
     curl_easy_setopt(m_Curl, CURLOPT_POSTFIELDS, sParams.c_str());
     curl_easy_setopt(m_Curl, CURLOPT_POSTFIELDSIZE, sParams.size());
     curl_easy_setopt(m_Curl, CURLOPT_FOLLOWLOCATION, 1L);
@@ -912,8 +915,11 @@ void CS7PLC::getIpAddress(std::string &IpAddress)
 void CS7PLC::setIpAddress(std::string IpAddress)
 {
     m_sIpAddress = IpAddress;
-    if(m_nTcpPort!=80) {
+    if(m_nTcpPort!=80 && m_nTcpPort!=443) {
         m_sBaseUrl = "http://"+m_sIpAddress+":"+std::to_string(m_nTcpPort);
+    }
+    else if (m_nTcpPort==443) {
+        m_sBaseUrl = "https://"+m_sIpAddress;
     }
     else {
         m_sBaseUrl = "http://"+m_sIpAddress;

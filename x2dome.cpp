@@ -129,10 +129,12 @@ int X2Dome::execModalSettingsDialog()
     if(m_bLinked) { // we can't change the value for the ip and port if we're connected
         dx->setEnabled("IPAddress", false);
         dx->setEnabled("tcpPort", false);
+        dx->setEnabled("pushButton", true);
     }
     else {
         dx->setEnabled("IPAddress", true);
         dx->setEnabled("tcpPort", true);
+        dx->setEnabled("pushButton", false);
     }
 
 
@@ -177,7 +179,7 @@ void X2Dome::uiEvent(X2GUIExchangeInterface* uiex, const char* pszEvent)
                     uiex->setEnabled("pushButtonOK",true);
                     uiex->setEnabled("pushButtonCancel", true);
                     snprintf(szErrorMessage, LOG_BUFFER_SIZE, "Error calibrating dome : Error %d", nErr);
-                    uiex->messageBox("RTI-Dome Calibrate", szErrorMessage);
+                    uiex->messageBox("S7-1200 Calibrate", szErrorMessage);
                     m_bCalibratingDome = false;
                     return;
                 }
@@ -191,9 +193,6 @@ void X2Dome::uiEvent(X2GUIExchangeInterface* uiex, const char* pszEvent)
                 uiex->setEnabled("pushButtonCancel", true);
                 m_bCalibratingDome = false;
                 uiex->setText("pushButton", "Calibrate");
-                uiex->setEnabled("pushButton_2", true);
-                // read step per rev from controller
-                // uiex->setPropertyInt("ticksPerRev","value", m_S7PLC.getNbTicksPerRev());
             }
         }
     }
@@ -205,7 +204,6 @@ void X2Dome::uiEvent(X2GUIExchangeInterface* uiex, const char* pszEvent)
                 // enable buttons
                 uiex->setEnabled("pushButtonOK", true);
                 uiex->setEnabled("pushButtonCancel", true);
-                uiex->setEnabled("pushButton_2", true);
                 // stop everything
                 m_S7PLC.abortCurrentCommand();
                 m_bCalibratingDome = false;
@@ -215,16 +213,12 @@ void X2Dome::uiEvent(X2GUIExchangeInterface* uiex, const char* pszEvent)
                 // disable buttons
                 uiex->setEnabled("pushButtonOK", false);
                 uiex->setEnabled("pushButtonCancel", false);
-                uiex->setEnabled("pushButton_2", false);
                 // change "Calibrate" to "Abort"
                 uiex->setText("pushButton", "Abort");
                 m_S7PLC.calibrate();
                 m_bCalibratingDome = true;
             }
         }
-    }
-
-    else if (!strcmp(pszEvent, "on_pushButton_5_clicked")) {
     }
 
 }
