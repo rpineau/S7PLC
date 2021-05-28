@@ -615,6 +615,7 @@ int CS7PLC::gotoAzimuth(double newAz)
     int nErr = PLUGIN_OK;
     std::string response_string;
     std::string sPostData;
+    int nTargetConv;
 
     if(!m_bIsConnected)
         return NOT_CONNECTED;
@@ -628,7 +629,8 @@ int CS7PLC::gotoAzimuth(double newAz)
 #endif
 
     // set target
-    sPostData = "%22TARGET%22=" + std::to_string(newAz);
+    nTargetConv = int(newAz * 100);
+    sPostData = "%22TARGETx100%22=" + std::to_string(nTargetConv);
     nErr = domeCommandPOST("/awp/setTarget.htm", response_string, sPostData);
     if(nErr)
         return nErr;
