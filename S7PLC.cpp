@@ -369,7 +369,6 @@ int CS7PLC::getFirmware(std::string &sFirmware)
         return ERR_CMDFAILED;
     }
 
-    sFirmware.assign(response_string);
     return nErr;
 }
 
