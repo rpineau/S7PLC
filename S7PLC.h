@@ -120,6 +120,8 @@ protected:
     bool            isDomeMoving();
     bool            isDomeAtHome();
 
+    int             setAutoMode(bool bEnable);
+
     CURL            *m_Curl;
     std::string     m_sBaseUrl;
 

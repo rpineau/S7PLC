@@ -1,0 +1,7 @@
+POST /awp/setTarget.htm  HTTP/1.1
+Host: 192.168.254.33
+Accept: */*
+Content-Length: 22
+Content-Type: application/x-www-form-urlencoded
+
+%22TARGET%22=10.000000

@@ -62,7 +62,6 @@ CS7PLC::~CS7PLC()
     fprintf(Logfile, "[%s] [CS7PLC::~CS7PLC] Destructor Called\n", timestamp );
     fflush(Logfile);
 #endif
-
     curl_global_cleanup();
 }
 
@@ -90,14 +89,20 @@ int CS7PLC::Connect()
     fflush(Logfile);
 #endif
 
-    m_Curl = curl_easy_init();
-
-    if(!m_Curl) {
-        m_Curl = nullptr;
-        return ERR_CMDFAILED;
-    }
-
     m_bIsConnected = true;
+
+    nErr = setAutoMode(true);
+    if(nErr) {
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+        ltime = time(NULL);
+        timestamp = asctime(localtime(&ltime));
+        timestamp[strlen(timestamp) - 1] = 0;
+        fprintf(Logfile, "[%s] [CS7PLC::Connect] Error setting mode to AUTO = %d.\n", timestamp, nErr);
+        fflush(Logfile);
+#endif
+        m_bIsConnected = false;
+        return ERR_COMMNOLINK;
+    }
 
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
     ltime = time(NULL);
@@ -143,8 +148,8 @@ int CS7PLC::Connect()
 
 void CS7PLC::Disconnect()
 {
+    setAutoMode(false);
     m_bIsConnected = false;
-    curl_easy_cleanup(m_Curl);
 }
 
 
@@ -166,9 +171,16 @@ int CS7PLC::domeCommandGET(std::string sCmd, std::string &sResp)
     fprintf(Logfile, "[%s] [CS7PLC::domeCommandGET] Doing get on  %s\n", timestamp, sCmd.c_str());
     fflush(Logfile);
 #endif
+    m_Curl = curl_easy_init();
+
+    if(!m_Curl) {
+        m_Curl = nullptr;
+        return ERR_CMDFAILED;
+    }
+
     curl_easy_setopt(m_Curl, CURLOPT_URL, (m_sBaseUrl+sCmd).c_str());
     curl_easy_setopt(m_Curl, CURLOPT_HTTPGET, 1L);
-    curl_easy_setopt(m_Curl, CURLOPT_SSL_VERIFYSTATUS, 0L);
+    curl_easy_setopt(m_Curl, CURLOPT_SSL_VERIFYHOST, 0L);
     curl_easy_setopt(m_Curl, CURLOPT_SSL_VERIFYPEER, 0L);
     curl_easy_setopt(m_Curl, CURLOPT_FOLLOWLOCATION, 1L);
     curl_easy_setopt(m_Curl, CURLOPT_WRITEFUNCTION, writeFunction);
@@ -187,6 +199,7 @@ int CS7PLC::domeCommandGET(std::string sCmd, std::string &sResp)
         fprintf(Logfile, "[%s] [CS7PLC::domeCommandGET] Error = %s.\n", timestamp,  curl_easy_strerror(res));
         fflush(Logfile);
 #endif
+        curl_easy_cleanup(m_Curl);
         return ERR_CMDFAILED;
     }
 
@@ -207,6 +220,7 @@ int CS7PLC::domeCommandGET(std::string sCmd, std::string &sResp)
     fprintf(Logfile, "[%s] [CS7PLC::domeCommandGET] sResp = %s\n", timestamp,  sResp.c_str());
     fflush(Logfile);
 #endif
+    curl_easy_cleanup(m_Curl);
     return nErr;
 }
 
@@ -229,9 +243,16 @@ int CS7PLC::domeCommandPOST(std::string sCmd, std::string &sResp, std::string sP
     fprintf(Logfile, "[%s] [CS7PLC::domeCommandPOST] Sending %s\n", timestamp, sParams.c_str());
     fflush(Logfile);
 #endif
+    m_Curl = curl_easy_init();
+
+    if(!m_Curl) {
+        m_Curl = nullptr;
+        return ERR_CMDFAILED;
+    }
+
     curl_easy_setopt(m_Curl, CURLOPT_URL, (m_sBaseUrl+sCmd).c_str());
     curl_easy_setopt(m_Curl, CURLOPT_POST, 1L);
-    curl_easy_setopt(m_Curl, CURLOPT_SSL_VERIFYSTATUS, 0L);
+    curl_easy_setopt(m_Curl, CURLOPT_SSL_VERIFYHOST, 0L);
     curl_easy_setopt(m_Curl, CURLOPT_SSL_VERIFYPEER, 0L);
     curl_easy_setopt(m_Curl, CURLOPT_POSTFIELDS, sParams.c_str());
     curl_easy_setopt(m_Curl, CURLOPT_POSTFIELDSIZE, sParams.size());
@@ -252,6 +273,7 @@ int CS7PLC::domeCommandPOST(std::string sCmd, std::string &sResp, std::string sP
         fprintf(Logfile, "[%s] [CS7PLC::domeCommandPOST] Error = %s.\n", timestamp,  curl_easy_strerror(res));
         fflush(Logfile);
 #endif
+        curl_easy_cleanup(m_Curl);
         return ERR_CMDFAILED;
     }
 
@@ -271,8 +293,42 @@ int CS7PLC::domeCommandPOST(std::string sCmd, std::string &sResp, std::string sP
     fprintf(Logfile, "[%s] [CS7PLC::domeCommandPOST] sResp = %s\n", timestamp,  sResp.c_str());
     fflush(Logfile);
 #endif
+    curl_easy_cleanup(m_Curl);
     return nErr;
 }
+
+size_t CS7PLC::writeFunction(void* ptr, size_t size, size_t nmemb, void* data)
+{
+    ((std::string*)data)->append((char*)ptr, size * nmemb);
+    return size * nmemb;
+}
+
+int CS7PLC::setAutoMode(bool bEnable)
+{
+    int nErr = PLUGIN_OK;
+    std::string response_string;
+    std::string sParams;
+
+    if(!m_bIsConnected)
+        return NOT_CONNECTED;
+
+    sParams="%22AUTO%22=" + std::string(bEnable?"1":"0");
+    nErr = domeCommandPOST("/awp/setAuto.htm", response_string, sParams);
+    if(nErr) {
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+        ltime = time(NULL);
+        timestamp = asctime(localtime(&ltime));
+        timestamp[strlen(timestamp) - 1] = 0;
+        fprintf(Logfile, "[%s] [CS7PLC::setAutoMode] ERROR = %s\n", timestamp, response_string.c_str());
+        fflush(Logfile);
+#endif
+        return nErr;
+    }
+
+    return nErr;
+
+}
+
 
 int CS7PLC::getFirmware(std::string &sFirmware)
 {
@@ -327,7 +383,7 @@ int CS7PLC::calibrate()
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
-    sParams="%22CALIBRATE%22=1&%22AUTO%22=1";
+    sParams="%22CALIBRATE%22=1";
     nErr = domeCommandPOST("/awp/calibrate.htm", response_string, sParams);
     if(nErr) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
@@ -500,7 +556,7 @@ int CS7PLC::syncDome(double dAz, double dEl)
 
     if(!m_bIsConnected)
         return NOT_CONNECTED;
-
+/*
     sParams="%22AZIMUTH%22="+std::to_string(dAz);
     // do http post to S7 to set current position ... Az or ticks .. TBD
 
@@ -509,7 +565,7 @@ int CS7PLC::syncDome(double dAz, double dEl)
         return nErr;
 
     m_dCurrentAzPosition = dAz;
-
+*/
     return nErr;
 }
 
@@ -540,8 +596,16 @@ int CS7PLC::goHome()
     std::string response_string;
     std::string sPostData;
 
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] [CS7PLC::goHome]\n", timestamp);
+    fflush(Logfile);
+#endif
+
     // call GOTO
-    sPostData = "%GOHOME%22=1&%22AUTO%22=1";
+    sPostData = "%22GOHOME%22=1";
     nErr = domeCommandPOST("/awp/goHome.htm", response_string, sPostData);
 
     return nErr;
@@ -556,14 +620,22 @@ int CS7PLC::gotoAzimuth(double newAz)
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] [CS7PLC::gotoAzimuth] Doing goto %3.2f\n", timestamp, newAz);
+    fflush(Logfile);
+#endif
+
     // set target
-    sPostData = "%22TARGET%22=" + std::to_string(newAz) + "&%22AUTO%22=1";
-    nErr = domeCommandPOST("/awp/setTarget.htm ", response_string, sPostData);
+    sPostData = "%22TARGET%22=" + std::to_string(newAz);
+    nErr = domeCommandPOST("/awp/setTarget.htm", response_string, sPostData);
     if(nErr)
         return nErr;
 
     // call GOTO
-    sPostData = "%GOTO%22=1&%22AUTO%22=1";
+    sPostData = "%22GOTO%22=1";
     nErr = domeCommandPOST("/awp/goto.htm", response_string, sPostData);
     if(nErr)
         return nErr;
@@ -583,7 +655,7 @@ int CS7PLC::openShutter()
         return NOT_CONNECTED;
 
     // send http post to S7 to open the shutter
-    sParams="%22OPEN%22=1&%22AUTO%22=1";
+    sParams="%22OPEN%22=1";
     nErr = domeCommandPOST("/awp/open.htm", response_string, sParams);
     if(nErr)
         return nErr;
@@ -600,7 +672,7 @@ int CS7PLC::closeShutter()
         return NOT_CONNECTED;
 
     // send http post to S7 to open the shutter
-    sParams="%22CLOSE%22=1&%22AUTO%22=1";
+    sParams="%22CLOSE%22=1";
     nErr = domeCommandPOST("/awp/close.htm", response_string, sParams);
     if(nErr)
         return nErr;
@@ -894,7 +966,7 @@ int CS7PLC::abortCurrentCommand()
 #endif
 
     // do http post to S7 to abort all motion
-    sParams="%22ABORT%22=1&%22AUTO%22=1";
+    sParams="%22ABORT%22=1";
     nErr = domeCommandPOST("/awp/abort.htm", response_string, sParams);
     if(nErr)
         return nErr;
@@ -932,15 +1004,6 @@ int CS7PLC::getCurrentShutterState()
 }
 
 #pragma mark - Getter / Setter
-
-
-size_t CS7PLC::writeFunction(void* ptr, size_t size, size_t nmemb, void* data)
-{
-    std::string *sData = (std::string *)data;
-    sData->append((char*)ptr, size * nmemb);
-
-    return size * nmemb;
-}
 
 
 void CS7PLC::getIpAddress(std::string &IpAddress)

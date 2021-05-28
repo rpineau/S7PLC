@@ -2,7 +2,7 @@
 <!-- AWP_In_Variable Name='"DERECHA"' -->
 <!-- AWP_In_Variable Name='"STOP"' -->
 <!-- AWP_In_Variable Name='"TARGET"' -->
-<!-- AWP_In_Variable Name='"GO_TO"' -->
+<!-- AWP_In_Variable Name='"GOTO"' -->
 <!-- AWP_In_Variable Name='"AUTO"' -->
 <!DOCTYPE html>
 <html>
@@ -24,16 +24,16 @@
 		</form>
 		<p> Dome position: :="AZIMUTH": Degrees </p>
 		<p> Consigna: :="TARGET": Degrees </p>
-		<form method="post" action="" onsubmit="return check();">
-			<input type="text" name='"TARGET"' size="2">
+		<form method="post" action="">
+			<input type="text" name='"TARGET"' size="8">
 			<input type="submit" value="SET POSITION">
 		</form>
 		<form method="post" action="">
-			<input type="submit" value="GO TO" style="height: 45px; width: 200px">
-			<input type="hidden" name='"GO_TO"' size="20px" value="1">
+			<input type="submit" value="GOTO" style="height: 45px; width: 200px">
+			<input type="hidden" name='"GOTO"' size="20px" value="1">
 		</form>
-		<form method="post" action="" onsubmit="return check();">
-			<input type="text" name='"AUTO"' size="2">
+		<form method="post" action="">
+			<input type="text" name='"AUTO"' size="8">
 			<input type="submit" value="AUTO: (1) / (0)">
 		</form>
 		<p> AUTO: :="AUTO":</p>
