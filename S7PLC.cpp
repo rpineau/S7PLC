@@ -92,6 +92,13 @@ int CS7PLC::Connect()
     fflush(Logfile);
 #endif
 
+    m_Curl = curl_easy_init();
+
+    if(!m_Curl) {
+        m_Curl = nullptr;
+        return ERR_CMDFAILED;
+    }
+
     m_bIsConnected = true;
 
     nErr = setAutoMode(true);
@@ -103,8 +110,9 @@ int CS7PLC::Connect()
         fprintf(Logfile, "[%s] [CS7PLC::Connect] Error setting mode to AUTO = %d.\n", timestamp, nErr);
         fflush(Logfile);
 #endif
-        m_bIsConnected = false;
-        return ERR_COMMNOLINK;
+        // not sure this is a big error .. ignoring for now.
+        // m_bIsConnected = false;
+        // return ERR_COMMNOLINK;
     }
 
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
@@ -114,28 +122,8 @@ int CS7PLC::Connect()
     fprintf(Logfile, "[%s] [CS7PLC::Connect] Getting Shutter state.\n", timestamp);
     fflush(Logfile);
 #endif
-    // get the current shutter state just to check the connection, we don't care about the state for now.
-    nErr = getShutterState(m_nShutterState);
-    if(nErr) {
-#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CS7PLC::Connect] Error getting Shutter state = %d.\n", timestamp, nErr);
-        fflush(Logfile);
-#endif
-        m_bIsConnected = false;
-        return ERR_COMMNOLINK;
-    }
 
-#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CS7PLC::Connect] Shutter state = %d.\n", timestamp, m_nShutterState);
-    fflush(Logfile);
-#endif
-
+    // get the firmware to check the connection.
     nErr = getFirmware(sDummy);
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
     ltime = time(NULL);
@@ -152,6 +140,8 @@ int CS7PLC::Connect()
 void CS7PLC::Disconnect()
 {
     setAutoMode(false);
+    curl_easy_cleanup(m_Curl);
+    m_Curl = nullptr;
     m_bIsConnected = false;
 }
 
@@ -174,15 +164,10 @@ int CS7PLC::domeCommandGET(std::string sCmd, std::string &sResp)
     fprintf(Logfile, "[%s] [CS7PLC::domeCommandGET] Doing get on  %s\n", timestamp, sCmd.c_str());
     fflush(Logfile);
 #endif
-    m_Curl = curl_easy_init();
-
-    if(!m_Curl) {
-        m_Curl = nullptr;
-        return ERR_CMDFAILED;
-    }
 
     curl_easy_setopt(m_Curl, CURLOPT_URL, (m_sBaseUrl+sCmd).c_str());
     curl_easy_setopt(m_Curl, CURLOPT_HTTPGET, 1L);
+    curl_easy_setopt(m_Curl, CURLOPT_POST, 0L);
     curl_easy_setopt(m_Curl, CURLOPT_SSL_VERIFYHOST, 0L);
     curl_easy_setopt(m_Curl, CURLOPT_SSL_VERIFYPEER, 0L);
     curl_easy_setopt(m_Curl, CURLOPT_FOLLOWLOCATION, 1L);
@@ -202,7 +187,6 @@ int CS7PLC::domeCommandGET(std::string sCmd, std::string &sResp)
         fprintf(Logfile, "[%s] [CS7PLC::domeCommandGET] Error = %s.\n", timestamp,  curl_easy_strerror(res));
         fflush(Logfile);
 #endif
-        curl_easy_cleanup(m_Curl);
         return ERR_CMDFAILED;
     }
 
@@ -246,14 +230,9 @@ int CS7PLC::domeCommandPOST(std::string sCmd, std::string &sResp, std::string sP
     fprintf(Logfile, "[%s] [CS7PLC::domeCommandPOST] Sending %s\n", timestamp, sParams.c_str());
     fflush(Logfile);
 #endif
-    m_Curl = curl_easy_init();
-
-    if(!m_Curl) {
-        m_Curl = nullptr;
-        return ERR_CMDFAILED;
-    }
 
     curl_easy_setopt(m_Curl, CURLOPT_URL, (m_sBaseUrl+sCmd).c_str());
+    curl_easy_setopt(m_Curl, CURLOPT_HTTPGET, 0L);
     curl_easy_setopt(m_Curl, CURLOPT_POST, 1L);
     curl_easy_setopt(m_Curl, CURLOPT_SSL_VERIFYHOST, 0L);
     curl_easy_setopt(m_Curl, CURLOPT_SSL_VERIFYPEER, 0L);
@@ -276,7 +255,6 @@ int CS7PLC::domeCommandPOST(std::string sCmd, std::string &sResp, std::string sP
         fprintf(Logfile, "[%s] [CS7PLC::domeCommandPOST] Error = %s.\n", timestamp,  curl_easy_strerror(res));
         fflush(Logfile);
 #endif
-        curl_easy_cleanup(m_Curl);
         return ERR_CMDFAILED;
     }
 
