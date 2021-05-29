@@ -1,10 +1,6 @@
 
 #include "x2dome.h"
 
-
-
-
-
 X2Dome::X2Dome(const char* pszSelection, 
 							 const int& nISIndex,
 					SerXInterface*						pSerX,

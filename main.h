@@ -6,6 +6,8 @@
 	#define PlugInExport
 #endif
 
+#define PLUGIN_NAME "X2Dome S7PLC"
+
 class SerXInterface;
 class TheSkyXFacadeForDriversInterface;
 class SleeperInterface;

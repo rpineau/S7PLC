@@ -16,6 +16,7 @@
 		933C741C1E5F6BA2007E5CB3 /* main.h in Headers */ = {isa = PBXBuildFile; fileRef = 933C74161E5F6BA2007E5CB3 /* main.h */; };
 		933C741D1E5F6BA2007E5CB3 /* x2dome.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 933C74171E5F6BA2007E5CB3 /* x2dome.cpp */; };
 		933C741E1E5F6BA2007E5CB3 /* x2dome.h in Headers */ = {isa = PBXBuildFile; fileRef = 933C74181E5F6BA2007E5CB3 /* x2dome.h */; };
+		93AE26142662E1D40064890A /* StopWatch.h in Headers */ = {isa = PBXBuildFile; fileRef = 93AE26132662E1D40064890A /* StopWatch.h */; };
 		93D1E6762658123B009284D1 /* json.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 93D1E6752658123B009284D1 /* json.hpp */; };
 /* End PBXBuildFile section */
 
@@ -30,6 +31,7 @@
 		933C74161E5F6BA2007E5CB3 /* main.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = main.h; sourceTree = "<group>"; };
 		933C74171E5F6BA2007E5CB3 /* x2dome.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = x2dome.cpp; sourceTree = "<group>"; };
 		933C74181E5F6BA2007E5CB3 /* x2dome.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = x2dome.h; sourceTree = "<group>"; };
+		93AE26132662E1D40064890A /* StopWatch.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = StopWatch.h; sourceTree = "<group>"; };
 		93D1E6752658123B009284D1 /* json.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = json.hpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -67,6 +69,7 @@
 		932CF7C51E5F638B00E04860 /* Sources */ = {
 			isa = PBXGroup;
 			children = (
+				93AE26132662E1D40064890A /* StopWatch.h */,
 				93D1E6752658123B009284D1 /* json.hpp */,
 				933C74131E5F6BA2007E5CB3 /* S7PLC.cpp */,
 				933C74141E5F6BA2007E5CB3 /* S7PLC.h */,
@@ -97,6 +100,7 @@
 			files = (
 				93D1E6762658123B009284D1 /* json.hpp in Headers */,
 				933C741A1E5F6BA2007E5CB3 /* S7PLC.h in Headers */,
+				93AE26142662E1D40064890A /* StopWatch.h in Headers */,
 				933C741C1E5F6BA2007E5CB3 /* main.h in Headers */,
 				933C741E1E5F6BA2007E5CB3 /* x2dome.h in Headers */,
 			);

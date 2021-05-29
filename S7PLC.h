@@ -32,13 +32,15 @@
 #include "../../licensedinterfaces/sberrorx.h"
 #include "../../licensedinterfaces/sleeperinterface.h"
 
+#include "StopWatch.h"
 #include "json.hpp"
 using json = nlohmann::json;
 
 #define DRIVER_VERSION      1.0
 #define RESP_BUFFER_SIZE   8192
 #define ND_LOG_BUFFER_SIZE 256
-
+#define WAIT_TIME_DOME    1.0 // time to wait before checking if dome is doing something after sending a command
+#define WAIT_TIME_SHUTTER 2.0 // time to wait before checking if shutter is doing something after sending a command
 
 #define PLUGIN_DEBUG 2
 
@@ -141,6 +143,9 @@ protected:
     int             m_nDomeState;
     int             m_nShutterState;
     int             m_nGotoTries;
+
+    CStopWatch      m_domeWaitTimer;
+    CStopWatch      m_shutterWaitTimer;
 
 
     std::string&    trim(std::string &str, const std::string &filter );

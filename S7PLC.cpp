@@ -25,6 +25,9 @@ CS7PLC::CS7PLC()
     m_nTcpPort = 80;
     m_sIpAddress.clear();
 
+    m_domeWaitTimer.Reset();
+    m_shutterWaitTimer.Reset();
+
 #ifdef PLUGIN_DEBUG
 #if defined(SB_WIN_BUILD)
     m_sLogfilePath = getenv("HOMEDRIVE");
@@ -534,7 +537,7 @@ int CS7PLC::getShutterState(int &state)
         ltime = time(NULL);
         timestamp = asctime(localtime(&ltime));
         timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CS7PLC::getDomeAz] json exception : %s - %d\n", timestamp, e.what(), e.id);
+        fprintf(Logfile, "[%s] [CS7PLC::getShutterState] json exception : %s - %d\n", timestamp, e.what(), e.id);
         fflush(Logfile);
 #endif
         return ERR_CMDFAILED;
@@ -607,6 +610,8 @@ int CS7PLC::goHome()
     sPostData = "%22GOHOME%22=1";
     nErr = domeCommandPOST("/awp/goHome.htm", response_string, sPostData);
 
+    m_domeWaitTimer.Reset();
+
     return nErr;
 }
 
@@ -641,6 +646,8 @@ int CS7PLC::gotoAzimuth(double newAz)
     if(nErr)
         return nErr;
 
+    m_domeWaitTimer.Reset();
+
     m_dGotoAz = newAz;
 
     return nErr;
@@ -660,6 +667,8 @@ int CS7PLC::openShutter()
     nErr = domeCommandPOST("/awp/open.htm", response_string, sParams);
     if(nErr)
         return nErr;
+
+    m_shutterWaitTimer.Reset();
     return nErr;
 }
 
@@ -677,6 +686,8 @@ int CS7PLC::closeShutter()
     nErr = domeCommandPOST("/awp/close.htm", response_string, sParams);
     if(nErr)
         return nErr;
+
+    m_shutterWaitTimer.Reset();
     return nErr;
 }
 
@@ -689,6 +700,11 @@ bool CS7PLC::isDomeMoving()
 
     if(!m_bIsConnected)
         return NOT_CONNECTED;
+
+    if(m_domeWaitTimer.GetElapsedSeconds()< WAIT_TIME_DOME) {
+        bIsMoving = true; // assume it's moving
+        return nErr;
+    }
 
     // do http GET request to PLC got get current the dome rotation state .. TBD
     nErr = domeCommandGET("/awp/getState.htm", response_string);
@@ -777,13 +793,12 @@ int CS7PLC::isGoToComplete(bool &bComplete)
 
     if(isDomeMoving()) {
         bComplete = false;
-        getDomeAz(dDomeAz);
         return nErr;
     }
 
     getDomeAz(dDomeAz);
-    if(dDomeAz >0 && dDomeAz<1)
-        dDomeAz = 0;
+//    if(dDomeAz >0 && dDomeAz<1)
+//        dDomeAz = 0;
 
     while(ceil(m_dGotoAz) >= 360)
         m_dGotoAz = ceil(m_dGotoAz) - 360;
@@ -842,6 +857,11 @@ int CS7PLC::isOpenComplete(bool &bComplete)
 	fflush(Logfile);
 #endif
 
+    if(m_shutterWaitTimer.GetElapsedSeconds()<WAIT_TIME_SHUTTER) {
+        bComplete = false;
+        return nErr;
+    }
+
     nErr = getShutterState(m_nShutterState);
     if(nErr)
         return ERR_CMDFAILED;
@@ -867,7 +887,7 @@ int CS7PLC::isOpenComplete(bool &bComplete)
     return nErr;
 }
 
-int CS7PLC::isCloseComplete(bool &complete)
+int CS7PLC::isCloseComplete(bool &bComplete)
 {
     int nErr = PLUGIN_OK;
 
@@ -881,13 +901,19 @@ int CS7PLC::isCloseComplete(bool &complete)
 	fprintf(Logfile, "[%s] [CS7PLC::isCloseComplete] Checking Shutter state\n", timestamp);
 	fflush(Logfile);
 #endif
+
+    if(m_shutterWaitTimer.GetElapsedSeconds()<WAIT_TIME_SHUTTER) {
+        bComplete = false;
+        return nErr;
+    }
+
     nErr = getShutterState(m_nShutterState);
     if(nErr)
         return ERR_CMDFAILED;
 
     if(m_nShutterState == CLOSED){
         m_bShutterOpened = false;
-        complete = true;
+        bComplete = true;
         m_dCurrentElPosition = 0.0;
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
 		ltime = time(NULL);
@@ -899,7 +925,7 @@ int CS7PLC::isCloseComplete(bool &complete)
     }
     else {
         m_bShutterOpened = true;
-        complete = false;
+        bComplete = false;
         m_dCurrentElPosition = 90.0;
     }
 
@@ -933,14 +959,12 @@ int CS7PLC::isUnparkComplete(bool &bComplete)
 int CS7PLC::isFindHomeComplete(bool &bComplete)
 {
     int nErr = PLUGIN_OK;
-    double dDomeAz;
 
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
     if(isDomeMoving()) {
         bComplete = false;
-        getDomeAz(dDomeAz);
         return nErr;
     }
     else {
@@ -1078,7 +1102,6 @@ std::string& CS7PLC::rtrim(std::string& str, const std::string& filter)
 
 std::string CS7PLC::cleanupResponse(const std::string InString, char cSeparator)
 {
-    int nErr = PLUGIN_OK;
     std::string sSegment;
     std::vector<std::string> svFields;
 

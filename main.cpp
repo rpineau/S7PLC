@@ -1,8 +1,5 @@
 #include "main.h"
 
-
-#define PLUGIN_NAME "X2Dome S7PLC"
-
 extern "C" PlugInExport int sbPlugInName2(BasicStringInterface& str)
 {
 	str = PLUGIN_NAME;
