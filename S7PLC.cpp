@@ -115,14 +115,6 @@ int CS7PLC::Connect()
         // return ERR_COMMNOLINK;
     }
 
-#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CS7PLC::Connect] Getting Shutter state.\n", timestamp);
-    fflush(Logfile);
-#endif
-
     // get the firmware to check the connection.
     nErr = getFirmware(sDummy);
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
@@ -139,7 +131,6 @@ int CS7PLC::Connect()
 
 void CS7PLC::Disconnect()
 {
-    setAutoMode(false);
     curl_easy_cleanup(m_Curl);
     m_Curl = nullptr;
     m_bIsConnected = false;
@@ -168,7 +159,6 @@ int CS7PLC::domeCommandGET(std::string sCmd, std::string &sResp)
     curl_easy_setopt(m_Curl, CURLOPT_URL, (m_sBaseUrl+sCmd).c_str());
     curl_easy_setopt(m_Curl, CURLOPT_HTTPGET, 1L);
     curl_easy_setopt(m_Curl, CURLOPT_POST, 0L);
-    curl_easy_setopt(m_Curl, CURLOPT_SSL_VERIFYHOST, 0L);
     curl_easy_setopt(m_Curl, CURLOPT_SSL_VERIFYPEER, 0L);
     curl_easy_setopt(m_Curl, CURLOPT_FOLLOWLOCATION, 1L);
     curl_easy_setopt(m_Curl, CURLOPT_WRITEFUNCTION, writeFunction);
@@ -207,7 +197,6 @@ int CS7PLC::domeCommandGET(std::string sCmd, std::string &sResp)
     fprintf(Logfile, "[%s] [CS7PLC::domeCommandGET] sResp = %s\n", timestamp,  sResp.c_str());
     fflush(Logfile);
 #endif
-    curl_easy_cleanup(m_Curl);
     return nErr;
 }
 
@@ -234,7 +223,6 @@ int CS7PLC::domeCommandPOST(std::string sCmd, std::string &sResp, std::string sP
     curl_easy_setopt(m_Curl, CURLOPT_URL, (m_sBaseUrl+sCmd).c_str());
     curl_easy_setopt(m_Curl, CURLOPT_HTTPGET, 0L);
     curl_easy_setopt(m_Curl, CURLOPT_POST, 1L);
-    curl_easy_setopt(m_Curl, CURLOPT_SSL_VERIFYHOST, 0L);
     curl_easy_setopt(m_Curl, CURLOPT_SSL_VERIFYPEER, 0L);
     curl_easy_setopt(m_Curl, CURLOPT_POSTFIELDS, sParams.c_str());
     curl_easy_setopt(m_Curl, CURLOPT_POSTFIELDSIZE, sParams.size());
@@ -274,7 +262,6 @@ int CS7PLC::domeCommandPOST(std::string sCmd, std::string &sResp, std::string sP
     fprintf(Logfile, "[%s] [CS7PLC::domeCommandPOST] sResp = %s\n", timestamp,  sResp.c_str());
     fflush(Logfile);
 #endif
-    curl_easy_cleanup(m_Curl);
     return nErr;
 }
 
@@ -283,33 +270,6 @@ size_t CS7PLC::writeFunction(void* ptr, size_t size, size_t nmemb, void* data)
     ((std::string*)data)->append((char*)ptr, size * nmemb);
     return size * nmemb;
 }
-
-int CS7PLC::setAutoMode(bool bEnable)
-{
-    int nErr = PLUGIN_OK;
-    std::string response_string;
-    std::string sParams;
-
-    if(!m_bIsConnected)
-        return NOT_CONNECTED;
-
-    sParams="%22AUTO%22=" + std::string(bEnable?"1":"0");
-    nErr = domeCommandPOST("/awp/setAuto.htm", response_string, sParams);
-    if(nErr) {
-#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CS7PLC::setAutoMode] ERROR = %s\n", timestamp, response_string.c_str());
-        fflush(Logfile);
-#endif
-        return nErr;
-    }
-
-    return nErr;
-
-}
-
 
 int CS7PLC::getFirmware(std::string &sFirmware)
 {
@@ -353,6 +313,31 @@ int CS7PLC::getFirmware(std::string &sFirmware)
     return nErr;
 }
 
+int CS7PLC::setAutoMode(bool bEnable)
+{
+    int nErr = PLUGIN_OK;
+    std::string response_string;
+    std::string sParams;
+
+    if(!m_bIsConnected)
+        return NOT_CONNECTED;
+
+    sParams="%22AUTO%22=" + std::string(bEnable?"1":"0");
+    nErr = domeCommandPOST("/awp/setAuto.htm", response_string, sParams);
+    if(nErr) {
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+        ltime = time(NULL);
+        timestamp = asctime(localtime(&ltime));
+        timestamp[strlen(timestamp) - 1] = 0;
+        fprintf(Logfile, "[%s] [CS7PLC::setAutoMode] ERROR = %s\n", timestamp, response_string.c_str());
+        fflush(Logfile);
+#endif
+        return nErr;
+    }
+
+    return nErr;
+
+}
 
 int CS7PLC::calibrate()
 {
@@ -416,7 +401,6 @@ int CS7PLC::getDomeAz(double &domeAz)
     fflush(Logfile);
 #endif
 
-
     // do http GET request to PLC got get current Az or Ticks .. TBD
     nErr = domeCommandGET("/awp/getAz.htm", response_string);
     if(nErr) {
@@ -425,20 +409,23 @@ int CS7PLC::getDomeAz(double &domeAz)
 
     // process response_string
     try {
-        if(response_string.find("e-")!=-1) {
+        if(response_string.find("e-")!=-1 || response_string.find("e+")!=-1 ) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
             ltime = time(NULL);
             timestamp = asctime(localtime(&ltime));
             timestamp[strlen(timestamp) - 1] = 0;
-            fprintf(Logfile, "[%s] [CS7PLC::getDomeAz] response_string contains 'e-'\n", timestamp);
+            fprintf(Logfile, "[%s] [CS7PLC::getDomeAz] response_string contains 'e-' or 'e+'\n", timestamp);
             fflush(Logfile);
 #endif
             domeAz = m_dCurrentAzPosition;
             return nErr;
         }
         jResp = json::parse(response_string);
-        m_dCurrentAzPosition = jResp.at("Az").get<float>();
-        domeAz = m_dCurrentAzPosition;
+        domeAz = jResp.at("Az").get<float>();
+        domeAz /= 10;   // Az is no in 10th of degree int.
+
+
+        m_dCurrentAzPosition = domeAz;
     }
     catch (json::exception& e) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
@@ -612,8 +599,8 @@ int CS7PLC::gotoAzimuth(double newAz)
 #endif
 
     // set target
-    nTargetConv = int(newAz * 100);
-    sPostData = "%22TARGETx100%22=" + std::to_string(nTargetConv);
+    nTargetConv = int(newAz * 10); // Target and Az are in 10th of degree
+    sPostData = "%22TARGET%22=" + std::to_string(nTargetConv);
     nErr = domeCommandPOST("/awp/setTarget.htm", response_string, sPostData);
     if(nErr)
         return nErr;
