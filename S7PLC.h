@@ -124,6 +124,8 @@ protected:
 
     int             setAutoMode(bool bEnable);
 
+    bool            checkGotoBoundaries(double dGotoAz, double dDomeAz);
+
     CURL            *m_Curl;
     std::string     m_sBaseUrl;
 

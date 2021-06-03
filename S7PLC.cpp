@@ -400,7 +400,7 @@ int CS7PLC::getDomeAz(double &domeAz)
     fprintf(Logfile, "[%s] [CS7PLC::getDomeAz]\n", timestamp);
     fflush(Logfile);
 #endif
-
+    domeAz = m_dCurrentAzPosition; // if the command fails we return the last valid Az we got.
     // do http GET request to PLC got get current Az or Ticks .. TBD
     nErr = domeCommandGET("/awp/getAz.htm", response_string);
     if(nErr) {
@@ -409,22 +409,8 @@ int CS7PLC::getDomeAz(double &domeAz)
 
     // process response_string
     try {
-        if(response_string.find("e-")!=-1 || response_string.find("e+")!=-1 ) {
-#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-            ltime = time(NULL);
-            timestamp = asctime(localtime(&ltime));
-            timestamp[strlen(timestamp) - 1] = 0;
-            fprintf(Logfile, "[%s] [CS7PLC::getDomeAz] response_string contains 'e-' or 'e+'\n", timestamp);
-            fflush(Logfile);
-#endif
-            domeAz = m_dCurrentAzPosition;
-            return nErr;
-        }
         jResp = json::parse(response_string);
         domeAz = jResp.at("Az").get<float>();
-        domeAz /= 10;   // Az is no in 10th of degree int.
-
-
         m_dCurrentAzPosition = domeAz;
     }
     catch (json::exception& e) {
@@ -599,8 +585,8 @@ int CS7PLC::gotoAzimuth(double newAz)
 #endif
 
     // set target
-    nTargetConv = int(newAz * 10); // Target and Az are in 10th of degree
-    sPostData = "%22TARGET%22=" + std::to_string(nTargetConv);
+    nTargetConv = int(newAz * 100); // Targetx100 is converyed to TARGET Az in the PLC as TARGETx100/100.0
+    sPostData = "%22TARGETx100%22=" + std::to_string(nTargetConv);
     nErr = domeCommandPOST("/awp/setTarget.htm", response_string, sPostData);
     if(nErr)
         return nErr;
@@ -666,9 +652,15 @@ bool CS7PLC::isDomeMoving()
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
-    if(m_domeWaitTimer.GetElapsedSeconds()< WAIT_TIME_DOME) {
-        bIsMoving = true; // assume it's moving
-        return nErr;
+    if(m_domeWaitTimer.GetElapsedSeconds() < WAIT_TIME_DOME) {
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+        ltime = time(NULL);
+        timestamp = asctime(localtime(&ltime));
+        timestamp[strlen(timestamp) - 1] = 0;
+        fprintf(Logfile, "[%s] [CS7PLC::isDomeMoving] Dome is still moving\n", timestamp);
+        fflush(Logfile);
+#endif
+        return true;
     }
 
     // do http GET request to PLC got get current the dome rotation state .. TBD
@@ -690,7 +682,7 @@ bool CS7PLC::isDomeMoving()
         fprintf(Logfile, "[%s] [CS7PLC::isDomeMoving] json exception : %s - %d\n", timestamp, e.what(), e.id);
         fflush(Logfile);
 #endif
-        return ERR_CMDFAILED;
+        return false;
     }
 
      switch(m_nDomeState) {
@@ -704,6 +696,14 @@ bool CS7PLC::isDomeMoving()
              bIsMoving = false;
              break;
      }
+
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] [CS7PLC::isDomeMoving] Dome is %s\n", timestamp, bIsMoving?"moving":"not moving");
+    fflush(Logfile);
+#endif
 
     return bIsMoving;
 }
@@ -735,7 +735,7 @@ bool CS7PLC::isDomeAtHome()
         ltime = time(NULL);
         timestamp = asctime(localtime(&ltime));
         timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CS7PLC::isDomeMoving] json exception : %s - %d\n", timestamp, e.what(), e.id);
+        fprintf(Logfile, "[%s] [CS7PLC::isDomeAtHome] json exception : %s - %d\n", timestamp, e.what(), e.id);
         fflush(Logfile);
 #endif
         return ERR_CMDFAILED;
@@ -756,31 +756,31 @@ int CS7PLC::isGoToComplete(bool &bComplete)
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
+    bComplete = false;
     if(isDomeMoving()) {
-        bComplete = false;
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+        ltime = time(NULL);
+        timestamp = asctime(localtime(&ltime));
+        timestamp[strlen(timestamp) - 1] = 0;
+        fprintf(Logfile, "[%s] [CS7PLC::isGoToComplete] Dome is still moving\n", timestamp);
+        fprintf(Logfile, "[%s] [CS7PLC::isGoToComplete] bComplete = %s\n", timestamp, bComplete?"True":"False");
+        fflush(Logfile);
+#endif
         return nErr;
     }
 
     getDomeAz(dDomeAz);
-//    if(dDomeAz >0 && dDomeAz<1)
-//        dDomeAz = 0;
-
-    while(ceil(m_dGotoAz) >= 360)
-        m_dGotoAz = ceil(m_dGotoAz) - 360;
-
-    while(ceil(dDomeAz) >= 360)
-        dDomeAz = ceil(dDomeAz) - 360;
 
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
     ltime = time(NULL);
     timestamp = asctime(localtime(&ltime));
     timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] CS7PLC::isGoToComplete DomeAz = %3.2f\n", timestamp, dDomeAz);
+    fprintf(Logfile, "[%s] [CS7PLC::isGoToComplete] DomeAz    = %3.2f\n", timestamp, dDomeAz);
+    fprintf(Logfile, "[%s] [CS7PLC::isGoToComplete] m_dGotoAz = %3.2f\n", timestamp, m_dGotoAz);
     fflush(Logfile);
 #endif
 
-    // we need to test "large" depending on the heading error and movement coasting
-    if ((ceil(m_dGotoAz) <= ceil(dDomeAz)+3) && (ceil(m_dGotoAz) >= ceil(dDomeAz)-3)) {
+    if(checkGotoBoundaries(m_dGotoAz, dDomeAz)) {
         bComplete = true;
         m_nGotoTries = 0;
     }
@@ -804,7 +804,45 @@ int CS7PLC::isGoToComplete(bool &bComplete)
         }
     }
 
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+     fprintf(Logfile, "[%s] [CS7PLC::isGoToComplete] bComplete = %s\n", timestamp, bComplete?"True":"False");
+    fflush(Logfile);
+#endif
+
     return nErr;
+}
+
+bool CS7PLC::checkGotoBoundaries(double dGotoAz, double dDomeAz)
+{
+    double highMark;
+    double lowMark;
+    double roundedGotoAz;
+
+    // we need to test "large" depending on the heading error and movement coasting
+    highMark = ceil(dDomeAz)+2;
+    lowMark = ceil(dDomeAz)-2;
+    roundedGotoAz = ceil(dGotoAz);
+
+    if(lowMark < 0 && highMark>0) { // we're close to 0 degre but above 0
+        if((roundedGotoAz+2) >= 360)
+            roundedGotoAz = (roundedGotoAz+2)-360;
+        if ( (roundedGotoAz > lowMark) && (roundedGotoAz <= highMark)) {
+            return true;
+        }
+    }
+    else if ( lowMark > 0 && highMark>360 ) { // we're close to 0 but from the other side
+        if( (roundedGotoAz+360) > lowMark && (roundedGotoAz+360) <= highMark) {
+            return true;
+        }
+    }
+    else if (roundedGotoAz > lowMark && roundedGotoAz <= highMark) {
+        return true;
+    }
+
+    return false;
 }
 
 int CS7PLC::isOpenComplete(bool &bComplete)
