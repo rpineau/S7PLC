@@ -36,7 +36,7 @@
 #include "json.hpp"
 using json = nlohmann::json;
 
-#define DRIVER_VERSION      1.0
+#define PLUGIN_VERSION      1.0
 #define RESP_BUFFER_SIZE   8192
 #define ND_LOG_BUFFER_SIZE 256
 #define WAIT_TIME_DOME    1.0 // time to wait before checking if dome is doing something after sending a command

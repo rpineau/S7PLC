@@ -268,7 +268,7 @@ void X2Dome::deviceInfoModel(BasicStringInterface& str)
 
 double	X2Dome::driverInfoVersion(void) const
 {
-	return DRIVER_VERSION;
+	return PLUGIN_VERSION;
 }
 
 //

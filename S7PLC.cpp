@@ -47,7 +47,8 @@ CS7PLC::CS7PLC()
     ltime = time(NULL);
     timestamp = asctime(localtime(&ltime));
     timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CS7PLC::CS7PLC] New Constructor Called\n", timestamp);
+    fprintf(Logfile, "[%s] [CS7PLC] Version %3.2f build 2021_06_04_1130.\n", timestamp, PLUGIN_VERSION);
+    fprintf(Logfile, "[%s] [CS7PLC] Constructor Called.\n", timestamp);
     fflush(Logfile);
 #endif
 
@@ -411,6 +412,8 @@ int CS7PLC::getDomeAz(double &domeAz)
     try {
         jResp = json::parse(response_string);
         domeAz = jResp.at("Az").get<float>();
+        while(domeAz>=360)
+            domeAz-=360;
         m_dCurrentAzPosition = domeAz;
     }
     catch (json::exception& e) {
@@ -585,7 +588,7 @@ int CS7PLC::gotoAzimuth(double newAz)
 #endif
 
     // set target
-    nTargetConv = int(newAz * 100); // Targetx100 is converyed to TARGET Az in the PLC as TARGETx100/100.0
+    nTargetConv = int(std::round(newAz * 10) * 10); // Targetx100 is converyed to TARGET Az in the PLC as TARGETx100/100.0
     sPostData = "%22TARGETx100%22=" + std::to_string(nTargetConv);
     nErr = domeCommandPOST("/awp/setTarget.htm", response_string, sPostData);
     if(nErr)
@@ -826,19 +829,53 @@ bool CS7PLC::checkGotoBoundaries(double dGotoAz, double dDomeAz)
     lowMark = ceil(dDomeAz)-2;
     roundedGotoAz = ceil(dGotoAz);
 
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] [CS7PLC::checkGotoBoundaries] lowMark = %3.2f\n", timestamp, lowMark);
+    fprintf(Logfile, "[%s] [CS7PLC::checkGotoBoundaries] highMark = %3.2f\n", timestamp, highMark);
+    fprintf(Logfile, "[%s] [CS7PLC::checkGotoBoundaries] roundedGotoAz = %3.2f\n", timestamp, roundedGotoAz);
+    fprintf(Logfile, "[%s] [CS7PLC::checkGotoBoundaries] dDomeAz = %3.2f\n", timestamp, dDomeAz);
+    fflush(Logfile);
+#endif
+
     if(lowMark < 0 && highMark>0) { // we're close to 0 degre but above 0
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+        ltime = time(NULL);
+        timestamp = asctime(localtime(&ltime));
+        timestamp[strlen(timestamp) - 1] = 0;
+        fprintf(Logfile, "[%s] [CS7PLC::checkGotoBoundaries] lowMark < 0 && highMark>0\n", timestamp);
+        fflush(Logfile);
+#endif
         if((roundedGotoAz+2) >= 360)
             roundedGotoAz = (roundedGotoAz+2)-360;
         if ( (roundedGotoAz > lowMark) && (roundedGotoAz <= highMark)) {
             return true;
         }
     }
-    else if ( lowMark > 0 && highMark>360 ) { // we're close to 0 but from the other side
+
+    if ( lowMark > 0 && highMark>360 ) { // we're close to 0 but from the other side
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+        ltime = time(NULL);
+        timestamp = asctime(localtime(&ltime));
+        timestamp[strlen(timestamp) - 1] = 0;
+        fprintf(Logfile, "[%s] [CS7PLC::checkGotoBoundaries] lowMark > 0 && highMark>360 \n", timestamp);
+        fflush(Logfile);
+#endif
         if( (roundedGotoAz+360) > lowMark && (roundedGotoAz+360) <= highMark) {
             return true;
         }
     }
-    else if (roundedGotoAz > lowMark && roundedGotoAz <= highMark) {
+
+    if (roundedGotoAz > lowMark && roundedGotoAz <= highMark) {
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+        ltime = time(NULL);
+        timestamp = asctime(localtime(&ltime));
+        timestamp[strlen(timestamp) - 1] = 0;
+        fprintf(Logfile, "[%s] [CS7PLC::checkGotoBoundaries] roundedGotoAz > lowMark && roundedGotoAz <= highMark \n", timestamp);
+        fflush(Logfile);
+#endif
         return true;
     }
 
