@@ -750,7 +750,6 @@ bool CS7PLC::isDomeAtHome()
     return bAthome;
 }
 
-
 int CS7PLC::isGoToComplete(bool &bComplete)
 {
     int nErr = PLUGIN_OK;
