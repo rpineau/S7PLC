@@ -244,6 +244,7 @@ void X2Dome::deviceInfoDetailedDescription(BasicStringInterface& str) const
 {
     str = "N/A";
      if(m_bLinked) {
+         X2MutexLocker ml(GetMutex());
          std::string sFirmware;
          m_S7PLC.getFirmware(sFirmware);
          if(sFirmware.size())
@@ -278,10 +279,11 @@ double	X2Dome::driverInfoVersion(void) const
 
 int X2Dome::dapiGetAzEl(double* pdAz, double* pdEl)
 {
-    X2MutexLocker ml(GetMutex());
 
     if(!m_bLinked)
         return ERR_NOLINK;
+
+    X2MutexLocker ml(GetMutex());
 
     *pdAz = m_S7PLC.getCurrentAz();
     *pdEl = m_S7PLC.getCurrentEl();
@@ -292,10 +294,11 @@ int X2Dome::dapiGotoAzEl(double dAz, double dEl)
 {
     int err;
 
-    X2MutexLocker ml(GetMutex());
 
     if(!m_bLinked)
         return ERR_NOLINK;
+
+    X2MutexLocker ml(GetMutex());
 
     err = m_S7PLC.gotoAzimuth(dAz);
     if(err)
@@ -308,10 +311,11 @@ int X2Dome::dapiGotoAzEl(double dAz, double dEl)
 int X2Dome::dapiAbort(void)
 {
 
-    X2MutexLocker ml(GetMutex());
 
     if(!m_bLinked)
         return ERR_NOLINK;
+
+    X2MutexLocker ml(GetMutex());
 
     m_S7PLC.abortCurrentCommand();
 	return SB_OK;
@@ -320,11 +324,12 @@ int X2Dome::dapiAbort(void)
 int X2Dome::dapiOpen(void)
 {
     int err;
-    X2MutexLocker ml(GetMutex());
 
     if(!m_bLinked) {
         return ERR_NOLINK;
     }
+
+    X2MutexLocker ml(GetMutex());
 
     err = m_S7PLC.openShutter();
     if(err)
@@ -336,11 +341,12 @@ int X2Dome::dapiOpen(void)
 int X2Dome::dapiClose(void)
 {
     int err;
-    X2MutexLocker ml(GetMutex());
 
     if(!m_bLinked) {
         return ERR_NOLINK;
     }
+
+    X2MutexLocker ml(GetMutex());
 
     err = m_S7PLC.closeShutter();
     if(err)
@@ -352,10 +358,11 @@ int X2Dome::dapiClose(void)
 int X2Dome::dapiPark(void)
 {
     int err;
-    X2MutexLocker ml(GetMutex());
 
     if(!m_bLinked)
         return ERR_NOLINK;
+
+    X2MutexLocker ml(GetMutex());
 
     err = m_S7PLC.closeShutter();
     if(err)
@@ -371,10 +378,11 @@ int X2Dome::dapiPark(void)
 int X2Dome::dapiUnpark(void)
 {
     int err;
-    X2MutexLocker ml(GetMutex());
 
     if(!m_bLinked)
         return ERR_NOLINK;
+
+    X2MutexLocker ml(GetMutex());
 
     err = m_S7PLC.openShutter();
     if(err)
@@ -390,10 +398,11 @@ int X2Dome::dapiUnpark(void)
 int X2Dome::dapiFindHome(void)
 {
     int nErr = SB_OK;
-    X2MutexLocker ml(GetMutex());
 
     if(!m_bLinked)
         return ERR_NOLINK;
+
+    X2MutexLocker ml(GetMutex());
 
     nErr = m_S7PLC.goHome();
 
@@ -403,10 +412,11 @@ int X2Dome::dapiFindHome(void)
 int X2Dome::dapiIsGotoComplete(bool* pbComplete)
 {
     int err;
-    X2MutexLocker ml(GetMutex());
 
     if(!m_bLinked)
         return ERR_NOLINK;
+
+    X2MutexLocker ml(GetMutex());
 
     err = m_S7PLC.isGoToComplete(*pbComplete);
     if(err)
@@ -417,11 +427,12 @@ int X2Dome::dapiIsGotoComplete(bool* pbComplete)
 int X2Dome::dapiIsOpenComplete(bool* pbComplete)
 {
     int err;
-    X2MutexLocker ml(GetMutex());
 
     if(!m_bLinked)
         return ERR_NOLINK;
-    
+
+    X2MutexLocker ml(GetMutex());
+
     err = m_S7PLC.isOpenComplete(*pbComplete);
     if(err) {
         return ERR_CMDFAILED;
@@ -432,10 +443,11 @@ int X2Dome::dapiIsOpenComplete(bool* pbComplete)
 int	X2Dome::dapiIsCloseComplete(bool* pbComplete)
 {
     int err;
-    X2MutexLocker ml(GetMutex());
 
     if(!m_bLinked)
         return ERR_NOLINK;
+
+    X2MutexLocker ml(GetMutex());
 
     err = m_S7PLC.isCloseComplete(*pbComplete);
     if(err) {
@@ -447,10 +459,11 @@ int	X2Dome::dapiIsCloseComplete(bool* pbComplete)
 int X2Dome::dapiIsParkComplete(bool* pbComplete)
 {
     int err;
-    X2MutexLocker ml(GetMutex());
 
     if(!m_bLinked)
         return ERR_NOLINK;
+
+    X2MutexLocker ml(GetMutex());
 
     err = m_S7PLC.isParkComplete(*pbComplete);
     if(err)
@@ -462,10 +475,11 @@ int X2Dome::dapiIsParkComplete(bool* pbComplete)
 int X2Dome::dapiIsUnparkComplete(bool* pbComplete)
 {
     int err;
-    X2MutexLocker ml(GetMutex());
 
     if(!m_bLinked)
         return ERR_NOLINK;
+
+    X2MutexLocker ml(GetMutex());
 
     err = m_S7PLC.isUnparkComplete(*pbComplete);
     if(err)
@@ -477,10 +491,11 @@ int X2Dome::dapiIsUnparkComplete(bool* pbComplete)
 int X2Dome::dapiIsFindHomeComplete(bool* pbComplete)
 {
     int err;
-    X2MutexLocker ml(GetMutex());
 
     if(!m_bLinked)
         return ERR_NOLINK;
+
+    X2MutexLocker ml(GetMutex());
 
     err = m_S7PLC.isFindHomeComplete(*pbComplete);
     if(err)
@@ -493,10 +508,11 @@ int X2Dome::dapiSync(double dAz, double dEl)
 {
     int err;
 
-    X2MutexLocker ml(GetMutex());
 
     if(!m_bLinked)
         return ERR_NOLINK;
+
+    X2MutexLocker ml(GetMutex());
 
     err = m_S7PLC.syncDome(dAz, dEl);
     if (err)
