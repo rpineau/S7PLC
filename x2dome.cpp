@@ -243,13 +243,13 @@ void X2Dome::deviceInfoDetailedDescription(BasicStringInterface& str) const
  void X2Dome::deviceInfoFirmwareVersion(BasicStringInterface& str)					
 {
     str = "N/A";
-     if(m_bLinked) {
-         X2MutexLocker ml(GetMutex());
-         std::string sFirmware;
-         m_S7PLC.getFirmware(sFirmware);
-         if(sFirmware.size())
-             str = sFirmware.c_str();
-     }
+    if(m_bLinked) {
+        X2MutexLocker ml(GetMutex());
+        std::string sFirmware;
+        m_S7PLC.getFirmware(sFirmware);
+        if(sFirmware.size())
+         str = sFirmware.c_str();
+    }
 }
 
 void X2Dome::deviceInfoModel(BasicStringInterface& str)
