@@ -17,7 +17,11 @@
 #include <unistd.h>
 #endif
 
+#ifndef SB_WIN_BUILD
 #include <curl/curl.h>
+#else
+#include "win_includes/curl.h"
+#endif
 
 #ifdef SB_WIN_BUILD
 #include <time.h>
