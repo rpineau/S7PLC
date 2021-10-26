@@ -32,15 +32,19 @@
 #include <vector>
 #include <sstream>
 #include <iostream>
+#include <iomanip>
+#include <fstream>
+#include <chrono>
+#include <thread>
+#include <ctime>
 
 #include "../../licensedinterfaces/sberrorx.h"
-#include "../../licensedinterfaces/sleeperinterface.h"
 
 #include "StopWatch.h"
 #include "json.hpp"
 using json = nlohmann::json;
 
-#define PLUGIN_VERSION      1.0
+#define PLUGIN_VERSION      1.1
 #define RESP_BUFFER_SIZE   8192
 #define ND_LOG_BUFFER_SIZE 256
 #define WAIT_TIME_DOME    1.0 // time to wait before checking if dome is doing something after sending a command
@@ -67,8 +71,6 @@ public:
     int         Connect();
     void        Disconnect(void);
     bool        IsConnected(void) { return m_bIsConnected; }
-
-    void        setSleeper(SleeperInterface *pSleeper) { m_pSleeper = pSleeper; };
 
     int         getFirmware(std::string &sFirmware);
 
@@ -136,8 +138,6 @@ protected:
     std::string     m_sIpAddress;
     int             m_nTcpPort;
 
-	SleeperInterface    *m_pSleeper;
-
     bool            m_bIsConnected;
     bool            m_bShutterOpened;
 
@@ -160,11 +160,10 @@ protected:
 
     
 #ifdef PLUGIN_DEBUG
-    std::string m_sLogfilePath;
     // timestamp for logs
-    char *timestamp;
-    time_t ltime;
-    FILE *Logfile;      // LogFile
+    const std::string getTimeStamp();
+    std::ofstream m_sLogFile;
+    std::string m_sLogfilePath;
 #endif
 
 };

@@ -40,16 +40,13 @@ CS7PLC::CS7PLC()
     m_sLogfilePath = getenv("HOME");
     m_sLogfilePath += "/S7PLCLog.txt";
 #endif
-    Logfile = fopen(m_sLogfilePath.c_str(), "w");
+    m_sLogFile.open(m_sLogfilePath, std::ios::out |std::ios::trunc);
 #endif
 
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CS7PLC] Version %3.2f build 2021_06_04_1130.\n", timestamp, PLUGIN_VERSION);
-    fprintf(Logfile, "[%s] [CS7PLC] Constructor Called.\n", timestamp);
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [CS7PLC] Version " << std::fixed << std::setprecision(2) << PLUGIN_VERSION << " build " << __DATE__ << " " << __TIME__ << std::endl;
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [CS7PLC] Constructor Called." << std::endl;
+    m_sLogFile.flush();
 #endif
 
     curl_global_init(CURL_GLOBAL_ALL);
@@ -59,12 +56,11 @@ CS7PLC::CS7PLC()
 
 CS7PLC::~CS7PLC()
 {
+
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CS7PLC::~CS7PLC] Destructor Called\n", timestamp );
-    fflush(Logfile);
+    // Close LogFile
+    if(m_sLogFile.is_open())
+        m_sLogFile.close();
 #endif
     curl_global_cleanup();
 }
@@ -75,22 +71,16 @@ int CS7PLC::Connect()
     std::string sDummy;
 
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CS7PLC::Connect] Called\n", timestamp);
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [Connect] Called." << std::endl;
+    m_sLogFile.flush();
 #endif
 
     if(m_sIpAddress.empty())
         return ERR_COMMNOLINK;
 
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CS7PLC::Connect] Base url = %s\n", timestamp, m_sBaseUrl.c_str());
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [Connect] Base url = " << m_sBaseUrl << std::endl;
+    m_sLogFile.flush();
 #endif
 
     m_Curl = curl_easy_init();
@@ -105,11 +95,8 @@ int CS7PLC::Connect()
     nErr = setAutoMode(true);
     if(nErr) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CS7PLC::Connect] Error setting mode to AUTO = %d.\n", timestamp, nErr);
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [Connect] Error setting mode to AUTO = " << nErr << std::endl;
+        m_sLogFile.flush();
 #endif
         // not sure this is a big error .. ignoring for now.
         // m_bIsConnected = false;
@@ -119,11 +106,8 @@ int CS7PLC::Connect()
     // get the firmware to check the connection.
     nErr = getFirmware(sDummy);
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CS7PLC::Connect] Firmware = %s.\n", timestamp, sDummy.c_str());
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [Connect] Firmware = " << sDummy << std::endl;
+    m_sLogFile.flush();
 #endif
 
     return SB_OK;
@@ -149,12 +133,9 @@ int CS7PLC::domeCommandGET(std::string sCmd, std::string &sResp)
         return NOT_CONNECTED;
 
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CS7PLC::domeCommandGET]\n", timestamp);
-    fprintf(Logfile, "[%s] [CS7PLC::domeCommandGET] Doing get on  %s\n", timestamp, sCmd.c_str());
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [domeCommandGET] Called." << std::endl;
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [domeCommandGET] Doing get on " << sCmd << std::endl;
+    m_sLogFile.flush();
 #endif
 
     curl_easy_setopt(m_Curl, CURLOPT_URL, (m_sBaseUrl+sCmd).c_str());
@@ -172,31 +153,22 @@ int CS7PLC::domeCommandGET(std::string sCmd, std::string &sResp)
     // Check for errors
     if(res != CURLE_OK) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CS7PLC::domeCommandGET] Error = %s.\n", timestamp,  curl_easy_strerror(res));
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [domeCommandGET] Error = " << nErr << std::endl;
+        m_sLogFile.flush();
 #endif
         return ERR_CMDFAILED;
     }
 
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CS7PLC::domeCommandGET] response = %s\n", timestamp,  response_string.c_str());
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [domeCommandGET] response = " << response_string << std::endl;
+    m_sLogFile.flush();
 #endif
 
     sResp.assign(cleanupResponse(response_string,'\n'));
 
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CS7PLC::domeCommandGET] sResp = %s\n", timestamp,  sResp.c_str());
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [domeCommandGET] sResp = " << sResp << std::endl;
+    m_sLogFile.flush();
 #endif
     return nErr;
 }
@@ -212,13 +184,10 @@ int CS7PLC::domeCommandPOST(std::string sCmd, std::string &sResp, std::string sP
         return NOT_CONNECTED;
 
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CS7PLC::domeCommandPOST]\n", timestamp);
-    fprintf(Logfile, "[%s] [CS7PLC::domeCommandPOST] Doing post on  %s\n", timestamp, sCmd.c_str());
-    fprintf(Logfile, "[%s] [CS7PLC::domeCommandPOST] Sending %s\n", timestamp, sParams.c_str());
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [domeCommandPOST] Called." << std::endl;
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [domeCommandPOST] Doing post on " << sCmd << std::endl;
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [domeCommandPOST] Sending " << sParams << std::endl;
+    m_sLogFile.flush();
 #endif
 
     curl_easy_setopt(m_Curl, CURLOPT_URL, (m_sBaseUrl+sCmd).c_str());
@@ -238,30 +207,21 @@ int CS7PLC::domeCommandPOST(std::string sCmd, std::string &sResp, std::string sP
     // Check for errors
     if(res != CURLE_OK) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CS7PLC::domeCommandPOST] Error = %s.\n", timestamp,  curl_easy_strerror(res));
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [domeCommandPOST] Error = " << nErr << std::endl;
+        m_sLogFile.flush();
 #endif
         return ERR_CMDFAILED;
     }
 
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CS7PLC::domeCommandPOST] response = %s\n", timestamp,  response_string.c_str());
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [domeCommandPOST] response = " << response_string << std::endl;
+    m_sLogFile.flush();
 #endif
 
     sResp.assign(cleanupResponse(response_string,'\n'));
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CS7PLC::domeCommandPOST] sResp = %s\n", timestamp,  sResp.c_str());
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [domeCommandPOST] sResp = " << sResp << std::endl;
+    m_sLogFile.flush();
 #endif
     return nErr;
 }
@@ -281,15 +241,17 @@ int CS7PLC::getFirmware(std::string &sFirmware)
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getFirmware] Called." << std::endl;
+    m_sLogFile.flush();
+#endif
+
     sFirmware.clear();
     nErr = domeCommandGET("/awp/version.htm", response_string);
     if(nErr) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CS7PLC::getDomeStepPerRev] ERROR = %s\n", timestamp, response_string.c_str());
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getFirmware] Error = " << response_string << std::endl;
+        m_sLogFile.flush();
 #endif
         return nErr;
     }
@@ -301,11 +263,9 @@ int CS7PLC::getFirmware(std::string &sFirmware)
     }
     catch (json::exception& e) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CS7PLC::getFirmware] json exception : %s - %d\n", timestamp, e.what(), e.id);
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getFirmware] json exception : " << e.what() << " - " << e.id << std::endl;
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getFirmware] json exception response : " << response_string << std::endl;
+        m_sLogFile.flush();
 #endif
         sFirmware = "Unknown";
         return ERR_CMDFAILED;
@@ -323,15 +283,18 @@ int CS7PLC::setAutoMode(bool bEnable)
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [setAutoMode] Called." << std::endl;
+    m_sLogFile.flush();
+#endif
+
+
     sParams="%22AUTO%22=" + std::string(bEnable?"1":"0");
     nErr = domeCommandPOST("/awp/setAuto.htm", response_string, sParams);
     if(nErr) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CS7PLC::setAutoMode] ERROR = %s\n", timestamp, response_string.c_str());
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [setAutoMode] Error = " << response_string << std::endl;
+        m_sLogFile.flush();
 #endif
         return nErr;
     }
@@ -349,15 +312,17 @@ int CS7PLC::calibrate()
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [calibrate] Called." << std::endl;
+    m_sLogFile.flush();
+#endif
+
     sParams="%22CALIBRATE%22=1";
     nErr = domeCommandPOST("/awp/calibrate.htm", response_string, sParams);
     if(nErr) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CS7PLC::calibrate] ERROR = %s\n", timestamp, response_string.c_str());
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [calibrate] Error = " << response_string << std::endl;
+        m_sLogFile.flush();
 #endif
         return nErr;
     }
@@ -375,6 +340,11 @@ int CS7PLC::isCalibratingComplete(bool &bComplete)
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isCalibratingComplete] Called." << std::endl;
+    m_sLogFile.flush();
+#endif
+
     if(isDomeMoving()) {
         bComplete = false;
         return nErr;
@@ -391,16 +361,15 @@ int CS7PLC::getDomeAz(double &domeAz)
     std::string response_string;
     json jResp;
 
+
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CS7PLC::getDomeAz]\n", timestamp);
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getDomeAz] Called." << std::endl;
+    m_sLogFile.flush();
 #endif
+
     domeAz = m_dCurrentAzPosition; // if the command fails we return the last valid Az we got.
     // do http GET request to PLC got get current Az or Ticks .. TBD
     nErr = domeCommandGET("/awp/getAz.htm", response_string);
@@ -418,11 +387,9 @@ int CS7PLC::getDomeAz(double &domeAz)
     }
     catch (json::exception& e) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CS7PLC::getDomeAz] json exception : %s - %d\n", timestamp, e.what(), e.id);
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getFirmware] json exception : " << e.what() << " - " << e.id << std::endl;
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getFirmware] json exception response : " << response_string << std::endl;
+        m_sLogFile.flush();
 #endif
         return ERR_CMDFAILED;
     }
@@ -436,6 +403,11 @@ int CS7PLC::getDomeEl(double &domeEl)
 
     if(!m_bIsConnected)
         return NOT_CONNECTED;
+
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getDomeEl] Called." << std::endl;
+    m_sLogFile.flush();
+#endif
 
     if(!m_bShutterOpened)
     {
@@ -462,17 +434,9 @@ int CS7PLC::getShutterState(int &state)
         return NOT_CONNECTED;
 
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CS7PLC::getShutterState]\n", timestamp);
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getShutterState] Called." << std::endl;
+    m_sLogFile.flush();
 #endif
-
-    // just return closed until we implement the hardware.
-    m_nShutterState = CLOSED;
-    return nErr;
-
 
     // do http GET request to PLC got get current the shutter state
     nErr = domeCommandGET("/awp/getShutter.htm", response_string);
@@ -488,11 +452,9 @@ int CS7PLC::getShutterState(int &state)
     }
     catch (json::exception& e) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CS7PLC::getShutterState] json exception : %s - %d\n", timestamp, e.what(), e.id);
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getShutterState] json exception : " << e.what() << " - " << e.id << std::endl;
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getShutterState] json exception response : " << response_string << std::endl;
+        m_sLogFile.flush();
 #endif
         return ERR_CMDFAILED;
     }
@@ -532,6 +494,10 @@ int CS7PLC::parkDome()
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [parkDome] Called." << std::endl;
+    m_sLogFile.flush();
+#endif
     return nErr;
 
 }
@@ -543,6 +509,11 @@ int CS7PLC::unparkDome()
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [unparkDome] Called." << std::endl;
+    m_sLogFile.flush();
+#endif
+
     return nErr;
 }
 
@@ -552,12 +523,12 @@ int CS7PLC::goHome()
     std::string response_string;
     std::string sPostData;
 
+    if(!m_bIsConnected)
+        return NOT_CONNECTED;
+
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CS7PLC::goHome]\n", timestamp);
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [goHome] Called." << std::endl;
+    m_sLogFile.flush();
 #endif
 
     // call GOTO
@@ -580,11 +551,9 @@ int CS7PLC::gotoAzimuth(double newAz)
         return NOT_CONNECTED;
 
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CS7PLC::gotoAzimuth] Doing goto %3.2f\n", timestamp, newAz);
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [goHome] Called." << std::endl;
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [goHome] Doing goto " << std::fixed << std::setprecision(2) << newAz << std::endl;
+    m_sLogFile.flush();
 #endif
 
     // set target
@@ -616,6 +585,11 @@ int CS7PLC::openShutter()
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [openShutter] Called." << std::endl;
+    m_sLogFile.flush();
+#endif
+
     // send http post to S7 to open the shutter
     sParams="%22OPEN%22=1";
     nErr = domeCommandPOST("/awp/open.htm", response_string, sParams);
@@ -634,6 +608,11 @@ int CS7PLC::closeShutter()
 
     if(!m_bIsConnected)
         return NOT_CONNECTED;
+
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [closeShutter] Called." << std::endl;
+    m_sLogFile.flush();
+#endif
 
     // send http post to S7 to open the shutter
     sParams="%22CLOSE%22=1";
@@ -655,13 +634,15 @@ bool CS7PLC::isDomeMoving()
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isDomeMoving] Called." << std::endl;
+    m_sLogFile.flush();
+#endif
+
     if(m_domeWaitTimer.GetElapsedSeconds() < WAIT_TIME_DOME) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CS7PLC::isDomeMoving] Dome is still moving\n", timestamp);
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isDomeMoving] Dome is still moving." << std::endl;
+        m_sLogFile.flush();
 #endif
         return true;
     }
@@ -679,11 +660,9 @@ bool CS7PLC::isDomeMoving()
     }
     catch (json::exception& e) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CS7PLC::isDomeMoving] json exception : %s - %d\n", timestamp, e.what(), e.id);
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getShutterState] json exception : " << e.what() << " - " << e.id << std::endl;
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getShutterState] json exception response : " << response_string << std::endl;
+        m_sLogFile.flush();
 #endif
         return false;
     }
@@ -701,11 +680,8 @@ bool CS7PLC::isDomeMoving()
      }
 
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CS7PLC::isDomeMoving] Dome is %s\n", timestamp, bIsMoving?"moving":"not moving");
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isDomeMoving] Dome is " << (bIsMoving?"moving":"not moving") << std::endl;
+    m_sLogFile.flush();
 #endif
 
     return bIsMoving;
@@ -722,6 +698,11 @@ bool CS7PLC::isDomeAtHome()
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isDomeAtHome] Called." << std::endl;
+    m_sLogFile.flush();
+#endif
+
     // do http GET request to PLC got get current the dome home state .. TBD
     nErr = domeCommandGET("/awp/getHome.htm", response_string);
     if(nErr) {
@@ -735,11 +716,9 @@ bool CS7PLC::isDomeAtHome()
     }
     catch (json::exception& e) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CS7PLC::isDomeAtHome] json exception : %s - %d\n", timestamp, e.what(), e.id);
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getShutterState] json exception : " << e.what() << " - " << e.id << std::endl;
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getShutterState] json exception response : " << response_string << std::endl;
+        m_sLogFile.flush();
 #endif
         return ERR_CMDFAILED;
     }
@@ -758,15 +737,17 @@ int CS7PLC::isGoToComplete(bool &bComplete)
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isGoToComplete] Called." << std::endl;
+    m_sLogFile.flush();
+#endif
+
     bComplete = false;
     if(isDomeMoving()) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CS7PLC::isGoToComplete] Dome is still moving\n", timestamp);
-        fprintf(Logfile, "[%s] [CS7PLC::isGoToComplete] bComplete = %s\n", timestamp, bComplete?"True":"False");
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isGoToComplete] Dome is still moving." << std::endl;
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isGoToComplete] bComplete " << (bComplete?"True":"False") << std::endl;
+        m_sLogFile.flush();
 #endif
         return nErr;
     }
@@ -774,12 +755,9 @@ int CS7PLC::isGoToComplete(bool &bComplete)
     getDomeAz(dDomeAz);
 
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CS7PLC::isGoToComplete] DomeAz    = %3.2f\n", timestamp, dDomeAz);
-    fprintf(Logfile, "[%s] [CS7PLC::isGoToComplete] m_dGotoAz = %3.2f\n", timestamp, m_dGotoAz);
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isGoToComplete] DomeAz    = " << std::fixed << std::setprecision(2) << dDomeAz << std::endl;
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isGoToComplete] m_dGotoAz = " << std::fixed << std::setprecision(2) << m_dGotoAz << std::endl;
+    m_sLogFile.flush();
 #endif
 
     if(checkGotoBoundaries(m_dGotoAz, dDomeAz)) {
@@ -789,11 +767,8 @@ int CS7PLC::isGoToComplete(bool &bComplete)
     else {
         // we're not moving and we're not at the final destination !!!
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] CS7PLC::isGoToComplete ***** ERROR **** domeAz = %3.2f, m_dGotoAz = %3.2f\n", timestamp, dDomeAz, m_dGotoAz);
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isGoToComplete] ***** ERROR **** domeAz = " << std::fixed << std::setprecision(2) << dDomeAz << ", m_dGotoAz = " << std::fixed << std::setprecision(2) << m_dGotoAz  << std::endl;
+        m_sLogFile.flush();
 #endif
         if(m_nGotoTries == 0) {
             bComplete = false;
@@ -807,11 +782,8 @@ int CS7PLC::isGoToComplete(bool &bComplete)
     }
 
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-     fprintf(Logfile, "[%s] [CS7PLC::isGoToComplete] bComplete = %s\n", timestamp, bComplete?"True":"False");
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isGoToComplete] bComplete " << (bComplete?"True":"False") << std::endl;
+    m_sLogFile.flush();
 #endif
 
     return nErr;
@@ -829,23 +801,17 @@ bool CS7PLC::checkGotoBoundaries(double dGotoAz, double dDomeAz)
     roundedGotoAz = ceil(dGotoAz);
 
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CS7PLC::checkGotoBoundaries] lowMark = %3.2f\n", timestamp, lowMark);
-    fprintf(Logfile, "[%s] [CS7PLC::checkGotoBoundaries] highMark = %3.2f\n", timestamp, highMark);
-    fprintf(Logfile, "[%s] [CS7PLC::checkGotoBoundaries] roundedGotoAz = %3.2f\n", timestamp, roundedGotoAz);
-    fprintf(Logfile, "[%s] [CS7PLC::checkGotoBoundaries] dDomeAz = %3.2f\n", timestamp, dDomeAz);
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [checkGotoBoundaries] lowMark = " << std::fixed << std::setprecision(2) << lowMark << std::endl;
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [checkGotoBoundaries] highMark = " << std::fixed << std::setprecision(2) << highMark << std::endl;
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [checkGotoBoundaries] roundedGotoAz = " << std::fixed << std::setprecision(2) << roundedGotoAz << std::endl;
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [checkGotoBoundaries] dDomeAz = " << std::fixed << std::setprecision(2) << dDomeAz << std::endl;
+    m_sLogFile.flush();
 #endif
 
     if(lowMark < 0 && highMark>0) { // we're close to 0 degre but above 0
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CS7PLC::checkGotoBoundaries] lowMark < 0 && highMark>0\n", timestamp);
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [checkGotoBoundaries] lowMark < 0 && highMark>0" << std::endl;
+        m_sLogFile.flush();
 #endif
         if((roundedGotoAz+2) >= 360)
             roundedGotoAz = (roundedGotoAz+2)-360;
@@ -856,11 +822,8 @@ bool CS7PLC::checkGotoBoundaries(double dGotoAz, double dDomeAz)
 
     if ( lowMark > 0 && highMark>360 ) { // we're close to 0 but from the other side
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CS7PLC::checkGotoBoundaries] lowMark > 0 && highMark>360 \n", timestamp);
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [checkGotoBoundaries] lowMark > 0 && highMark>360" << std::endl;
+        m_sLogFile.flush();
 #endif
         if( (roundedGotoAz+360) > lowMark && (roundedGotoAz+360) <= highMark) {
             return true;
@@ -869,11 +832,8 @@ bool CS7PLC::checkGotoBoundaries(double dGotoAz, double dDomeAz)
 
     if (roundedGotoAz > lowMark && roundedGotoAz <= highMark) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CS7PLC::checkGotoBoundaries] roundedGotoAz > lowMark && roundedGotoAz <= highMark \n", timestamp);
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [checkGotoBoundaries] roundedGotoAz > lowMark && roundedGotoAz <= highMark" << std::endl;
+        m_sLogFile.flush();
 #endif
         return true;
     }
@@ -889,11 +849,9 @@ int CS7PLC::isOpenComplete(bool &bComplete)
         return NOT_CONNECTED;
 
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-	ltime = time(NULL);
-	timestamp = asctime(localtime(&ltime));
-	timestamp[strlen(timestamp) - 1] = 0;
-	fprintf(Logfile, "[%s] [CS7PLC::isOpenComplete] Checking Shutter state\n", timestamp);
-	fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isOpenComplete] Called." << std::endl;
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isOpenComplete] Checking Shutter state." << std::endl;
+    m_sLogFile.flush();
 #endif
 
     if(m_shutterWaitTimer.GetElapsedSeconds()<WAIT_TIME_SHUTTER) {
@@ -910,11 +868,8 @@ int CS7PLC::isOpenComplete(bool &bComplete)
         bComplete = true;
         m_dCurrentElPosition = 90.0;
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-		ltime = time(NULL);
-		timestamp = asctime(localtime(&ltime));
-		timestamp[strlen(timestamp) - 1] = 0;
-		fprintf(Logfile, "[%s] [CS7PLC::isOpenComplete] Shutter is opened\n", timestamp);
-		fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isOpenComplete] Shutter is opened" << std::endl;
+        m_sLogFile.flush();
 #endif
     }
     else {
@@ -934,11 +889,9 @@ int CS7PLC::isCloseComplete(bool &bComplete)
         return NOT_CONNECTED;
 
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-	ltime = time(NULL);
-	timestamp = asctime(localtime(&ltime));
-	timestamp[strlen(timestamp) - 1] = 0;
-	fprintf(Logfile, "[%s] [CS7PLC::isCloseComplete] Checking Shutter state\n", timestamp);
-	fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isCloseComplete] Called." << std::endl;
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isCloseComplete] Checking Shutter state." << std::endl;
+    m_sLogFile.flush();
 #endif
 
     if(m_shutterWaitTimer.GetElapsedSeconds()<WAIT_TIME_SHUTTER) {
@@ -955,11 +908,8 @@ int CS7PLC::isCloseComplete(bool &bComplete)
         bComplete = true;
         m_dCurrentElPosition = 0.0;
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-		ltime = time(NULL);
-		timestamp = asctime(localtime(&ltime));
-		timestamp[strlen(timestamp) - 1] = 0;
-		fprintf(Logfile, "[%s] [CS7PLC::isCloseComplete] Shutter is closed\n", timestamp);
-		fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isCloseComplete] Shutter is closed" << std::endl;
+        m_sLogFile.flush();
 #endif
     }
     else {
@@ -1022,11 +972,8 @@ int CS7PLC::abortCurrentCommand()
     std::string sParams;
 
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-	ltime = time(NULL);
-	timestamp = asctime(localtime(&ltime));
-	timestamp[strlen(timestamp) - 1] = 0;
-	fprintf(Logfile, "[%s] [CS7PLC::abortCurrentCommand]\n", timestamp);
-	fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [abortCurrentCommand] Called." << std::endl;
+    m_sLogFile.flush();
 #endif
 
     // do http post to S7 to abort all motion
@@ -1088,11 +1035,8 @@ void CS7PLC::setIpAddress(std::string IpAddress)
         m_sBaseUrl = "http://"+m_sIpAddress;
     }
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CS7PLC::setIpAddress] New base url : %s\n", timestamp, m_sBaseUrl.c_str());
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [setIpAddress] New base url : " << m_sBaseUrl << std::endl;
+    m_sLogFile.flush();
 #endif
 
 }
@@ -1112,11 +1056,8 @@ void CS7PLC::setTcpPort(int nTcpPort)
         m_sBaseUrl = "http://"+m_sIpAddress;
     }
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CS7PLC::setTcpPort] New base url : %s\n", timestamp, m_sBaseUrl.c_str());
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [setTcpPort] New base url : " << m_sBaseUrl << std::endl;
+    m_sLogFile.flush();
 #endif
 }
 
@@ -1146,11 +1087,8 @@ std::string CS7PLC::cleanupResponse(const std::string InString, char cSeparator)
 
     if(!InString.size()) {
 #ifdef PLUGIN_DEBUG
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CRTIDome::setDefaultDir] InString is empty\n", timestamp);
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [cleanupResponse] InString is empty." << std::endl;
+        m_sLogFile.flush();
 #endif
         return InString;
     }
@@ -1177,3 +1115,15 @@ std::string CS7PLC::cleanupResponse(const std::string InString, char cSeparator)
 }
 
 
+#ifdef PLUGIN_DEBUG
+const std::string CS7PLC::getTimeStamp()
+{
+    time_t     now = time(0);
+    struct tm  tstruct;
+    char       buf[80];
+    tstruct = *localtime(&now);
+    std::strftime(buf, sizeof(buf), "%Y-%m-%d.%X", &tstruct);
+
+    return buf;
+}
+#endif

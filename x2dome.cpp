@@ -21,7 +21,6 @@ X2Dome::X2Dome(const char* pszSelection,
     m_pTickCount                    = pTickCount;
 
 	m_bLinked = false;
-    m_S7PLC.setSleeper(pSleeper);
 
     if (m_pIniUtil)
     {
